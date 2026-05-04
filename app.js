@@ -1,6 +1,73 @@
 const STORAGE_KEY = "sns-crm-clients";
 const BAD_IMPORT_ID = "sns-imported-building-prospects-2026-05-04";
 
+const IMPORTED_CONTACTS = [
+  {
+    id: "client-adam-muller-high-point-re",
+    company: "High Point RE",
+    contact: "Adam Muller",
+    email: "adam@highpointcre.com",
+    phone: "(310) 691-2090",
+    status: "Meeting scheduled",
+    meeting_date: "2026-05-12",
+    meeting_owner: "Dan",
+    next_step: "",
+    follow_up: "",
+    close_status: "",
+    notes: "Imported from client spreadsheet screenshot.",
+    buildings: [],
+    updated_at: "2026-05-04T23:56:00.000Z",
+  },
+  {
+    id: "client-yitzi-parnes-jmf-capital",
+    company: "JMF Capital",
+    contact: "Yitzi Parnes",
+    email: "Yitzy@jmfcap.com",
+    phone: "(516) 712-4254",
+    status: "Prospective",
+    meeting_date: "",
+    meeting_owner: "Jack",
+    next_step: "",
+    follow_up: "",
+    close_status: "",
+    notes: "Imported from client spreadsheet screenshot.",
+    buildings: [],
+    updated_at: "2026-05-04T23:56:00.000Z",
+  },
+  {
+    id: "client-moshe-schwebel-jmf-capital",
+    company: "JMF Capital",
+    contact: "Moshe Schwebel",
+    email: "Moshe@jmfcap.com",
+    phone: "(917) 880-06095",
+    status: "Prospective",
+    meeting_date: "",
+    meeting_owner: "Jack",
+    next_step: "",
+    follow_up: "",
+    close_status: "",
+    notes: "Imported from client spreadsheet screenshot. Phone number should be reviewed because screenshot shows 11 digits after area code formatting.",
+    buildings: [],
+    updated_at: "2026-05-04T23:56:00.000Z",
+  },
+  {
+    id: "client-sol-greenstein-atlantis",
+    company: "Atlantis",
+    contact: "Sol Greenstein",
+    email: "sol@atlantisseniorliving.com",
+    phone: "",
+    status: "Meeting scheduled",
+    meeting_date: "2026-05-05",
+    meeting_owner: "Dan",
+    next_step: "",
+    follow_up: "",
+    close_status: "",
+    notes: "Imported from client spreadsheet screenshot.",
+    buildings: [],
+    updated_at: "2026-05-04T23:56:00.000Z",
+  },
+];
+
 const state = {
   clients: [],
   search: "",
@@ -32,6 +99,11 @@ const els = {
   phone: document.querySelector("#phoneInput"),
   email: document.querySelector("#emailInput"),
   status: document.querySelector("#statusInput"),
+  meetingDate: document.querySelector("#meetingDateInput"),
+  meetingOwner: document.querySelector("#meetingOwnerInput"),
+  nextStep: document.querySelector("#nextStepInput"),
+  followUp: document.querySelector("#followUpInput"),
+  closeStatus: document.querySelector("#closeStatusInput"),
   notes: document.querySelector("#notesInput"),
   buildingDialog: document.querySelector("#buildingDialog"),
   buildingForm: document.querySelector("#buildingForm"),
@@ -102,9 +174,10 @@ function bindEvents() {
 }
 
 async function loadClients() {
-  state.clients = readLocalClients()
+  const existing = readLocalClients()
     .filter((client) => client.id !== BAD_IMPORT_ID && client.company !== "SNS Building Prospects")
     .map(normalizeClient);
+  state.clients = mergeImportedContacts(existing);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
 }
 
@@ -115,6 +188,15 @@ function readLocalClients() {
   } catch {
     return [];
   }
+}
+
+function mergeImportedContacts(existingClients) {
+  const byId = new Map(existingClients.map((client) => [client.id, client]));
+  IMPORTED_CONTACTS.forEach((client) => {
+    const existing = byId.get(client.id);
+    byId.set(client.id, normalizeClient({ ...client, ...(existing ?? {}), ...client }));
+  });
+  return Array.from(byId.values()).map(normalizeClient);
 }
 
 function render() {
@@ -138,11 +220,12 @@ function renderShell() {
 
 function renderMetrics() {
   const buildings = allBuildings();
-  const openItems = buildings.filter((item) => !["Installation done", "Dead / not a fit"].includes(item.building.status)).length;
+  const openClients = state.clients.filter((client) => !["Closed", "No close"].includes(client.status)).length;
+  const openBuildings = buildings.filter((item) => !["Installation done", "Dead / not a fit"].includes(item.building.status)).length;
   els.totalCount.textContent = state.clients.length;
   els.clientMetric.textContent = state.clients.length;
   els.buildingMetric.textContent = buildings.length;
-  els.statusMetric.textContent = openItems;
+  els.statusMetric.textContent = openClients + openBuildings;
 }
 
 function renderClients() {
@@ -171,6 +254,11 @@ function renderClients() {
       field("Contact", client.contact || "-"),
       linkedField("Phone", client.phone, `tel:${digitsOnly(client.phone)}`),
       linkedField("Email", client.email, `mailto:${client.email}`),
+      field("Meeting date", displayDate(client.meeting_date) || "-"),
+      field("Meeting owner", client.meeting_owner || "-"),
+      field("Next step", client.next_step || "-", true),
+      field("Follow up / comment", client.follow_up || "-", true),
+      field("Close / no close", client.close_status || "-", true),
       field("Buildings", String((client.buildings ?? []).length)),
       field("Updated", formatDate(client.updated_at)),
     );
@@ -299,6 +387,11 @@ function openClientDialog(client = null) {
   els.phone.value = client?.phone ?? "";
   els.email.value = client?.email ?? "";
   els.status.value = client?.status ?? "Prospective";
+  els.meetingDate.value = client?.meeting_date ?? "";
+  els.meetingOwner.value = client?.meeting_owner ?? "";
+  els.nextStep.value = client?.next_step ?? "";
+  els.followUp.value = client?.follow_up ?? "";
+  els.closeStatus.value = client?.close_status ?? "";
   els.notes.value = client?.notes ?? "";
   els.clientDialog.showModal();
   els.company.focus();
@@ -344,6 +437,11 @@ async function saveClient() {
     phone: els.phone.value.trim(),
     email: els.email.value.trim(),
     status: els.status.value,
+    meeting_date: els.meetingDate.value,
+    meeting_owner: els.meetingOwner.value.trim(),
+    next_step: els.nextStep.value.trim(),
+    follow_up: els.followUp.value.trim(),
+    close_status: els.closeStatus.value.trim(),
     notes: els.notes.value.trim(),
     updated_at: new Date().toISOString(),
   };
@@ -422,6 +520,11 @@ function normalizeClient(client) {
     phone: String(client.phone ?? "").trim(),
     email: String(client.email ?? "").trim(),
     status: String(client.status ?? "Prospective").trim(),
+    meeting_date: String(client.meeting_date ?? "").trim(),
+    meeting_owner: String(client.meeting_owner ?? "").trim(),
+    next_step: String(client.next_step ?? "").trim(),
+    follow_up: String(client.follow_up ?? "").trim(),
+    close_status: String(client.close_status ?? "").trim(),
     notes: String(client.notes ?? "").trim(),
     updated_at: client.updated_at || new Date().toISOString(),
     buildings: Array.isArray(client.buildings)
@@ -449,6 +552,11 @@ function searchTextForClient(client) {
     client.phone,
     client.email,
     client.status,
+    client.meeting_date,
+    client.meeting_owner,
+    client.next_step,
+    client.follow_up,
+    client.close_status,
     client.notes,
     ...(client.buildings ?? []).flatMap((building) => [building.name, building.address, building.status, building.description, building.notes]),
   ].join(" ").toLowerCase();
@@ -491,6 +599,13 @@ function pill(text, classNameValue) {
 
 function digitsOnly(value = "") {
   return value.replace(/[^+\d]/g, "");
+}
+
+function displayDate(value) {
+  if (!value) return "";
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${Number(month)}/${Number(day)}/${year}`;
 }
 
 function formatDate(value) {
