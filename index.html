@@ -11,8 +11,8 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar" aria-label="SNS CRM navigation">
+    <main class="app-shell">
+      <header class="masthead">
         <div class="brand">
           <img src="./assets/icon.svg" alt="" width="40" height="40" />
           <div>
@@ -20,19 +20,17 @@
             <span>Supply Net Solutions</span>
           </div>
         </div>
-
-        <div class="sidebar-stats">
-          <span>Client pipeline</span>
+        <div class="masthead-stats">
+          <span>Clients</span>
           <strong id="totalCount">0</strong>
-          <small>client records</small>
         </div>
-      </aside>
+      </header>
 
-      <main>
+      <section class="content-shell">
         <section class="topbar" aria-label="CRM controls">
           <div>
             <p class="eyebrow">SNS account desk</p>
-            <h1>Client Pipeline</h1>
+            <h1>Clients</h1>
           </div>
           <div class="topbar-actions">
             <label class="search-field">
@@ -46,12 +44,13 @@
           </div>
         </section>
 
-        <section id="pipelineView" class="view is-visible" aria-label="Client pipeline">
+        <section id="pipelineView" class="view is-visible" aria-label="Clients">
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Company</th>
+                  <th>Notes</th>
                   <th>Contact</th>
                   <th>Phone</th>
                   <th>Email</th>
@@ -68,8 +67,8 @@
             </div>
           </div>
         </section>
-      </main>
-    </div>
+      </section>
+    </main>
 
     <dialog id="clientDialog">
       <form id="clientForm" method="dialog">
@@ -100,8 +99,9 @@
             Status
             <select id="statusInput">
               <option>Had initial meeting</option>
+              <option>Interested</option>
               <option>Follow up</option>
-              <option>Contract sent</option>
+              <option>Sent contract</option>
               <option>Contract signed</option>
               <option>Installation started</option>
               <option>Installation done</option>
@@ -127,6 +127,7 @@
         <td data-label="Company" class="company-cell">
           <button class="row-link company-name" type="button"></button>
         </td>
+        <td data-label="Notes" class="notes-cell"></td>
         <td data-label="Contact" class="contact-cell"></td>
         <td data-label="Phone" class="phone-cell"></td>
         <td data-label="Email" class="email-cell"></td>
