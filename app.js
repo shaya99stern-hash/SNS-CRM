@@ -100,8 +100,8 @@ function render() {
     row.querySelector(".company-name").addEventListener("click", open);
     row.querySelector(".notes-cell").textContent = client.notes || "-";
     row.querySelector(".contact-cell").textContent = client.contact || "-";
-    row.querySelector(".phone-cell").textContent = client.phone || "-";
-    row.querySelector(".email-cell").textContent = client.email || "-";
+    setLinkedValue(row.querySelector(".phone-cell"), client.phone, `tel:${digitsOnly(client.phone)}`);
+    setLinkedValue(row.querySelector(".email-cell"), client.email, `mailto:${client.email}`);
 
     const status = row.querySelector(".status-pill");
     status.textContent = client.status || "Had initial meeting";
@@ -112,7 +112,18 @@ function render() {
     els.rows.append(row);
   });
 
-  els.empty.hidden = clients.length > 0;
+  if (state.clients.length === 0) {
+    els.empty.hidden = false;
+    els.empty.querySelector("strong").textContent = "No clients yet";
+    els.empty.querySelector("span").textContent = "Add the first SNS opportunity when you are ready.";
+  } else if (clients.length === 0) {
+    els.empty.hidden = false;
+    els.empty.querySelector("strong").textContent = "No matching clients found";
+    els.empty.querySelector("span").textContent = "Try a different company, contact, phone, email, status, or note.";
+  } else {
+    els.empty.hidden = true;
+  }
+
   els.totalCount.textContent = state.clients.length;
 }
 
@@ -164,7 +175,9 @@ async function saveClient() {
   const clients = [...state.clients];
   if (existingId) {
     const index = clients.findIndex((client) => client.id === existingId);
-    clients[index] = { ...clients[index], ...payload };
+    if (index >= 0) {
+      clients[index] = { ...clients[index], ...payload };
+    }
   } else {
     clients.unshift({ id: crypto.randomUUID(), ...payload });
   }
@@ -179,6 +192,23 @@ async function deleteClient(id) {
   state.clients = state.clients.filter((client) => client.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
   render();
+}
+
+function setLinkedValue(cell, value, href) {
+  cell.textContent = "";
+  if (!value) {
+    cell.textContent = "-";
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.href = href;
+  link.textContent = value;
+  cell.append(link);
+}
+
+function digitsOnly(value = "") {
+  return value.replace(/[^+\d]/g, "");
 }
 
 function formatDate(value) {
