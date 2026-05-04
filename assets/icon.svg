@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SNS CRM">
+  <rect width="512" height="512" rx="96" fill="#153d35"/>
+  <path d="M112 330c58 38 112 38 168 0 43-29 80-32 120-10" fill="none" stroke="#f4c95d" stroke-width="38" stroke-linecap="round"/>
+  <path d="M112 236c58 38 112 38 168 0 43-29 80-32 120-10" fill="none" stroke="#d8f2ec" stroke-width="38" stroke-linecap="round"/>
+  <path d="M112 142c58 38 112 38 168 0 43-29 80-32 120-10" fill="none" stroke="#5bbfae" stroke-width="38" stroke-linecap="round"/>
+</svg>
