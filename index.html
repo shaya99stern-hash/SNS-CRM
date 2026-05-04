@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=20260504-2" />
+    <link rel="stylesheet" href="./styles.css?v=20260504-3" />
   </head>
   <body>
     <main class="app-shell">
@@ -30,19 +30,28 @@
         <section class="topbar" aria-label="CRM controls">
           <div>
             <p class="eyebrow">SNS account desk</p>
-            <h1>Client Pipeline</h1>
+            <h1 id="pageTitle">Clients</h1>
           </div>
           <div class="topbar-actions">
             <label class="search-field">
               <span aria-hidden="true">?</span>
               <input id="searchInput" type="search" placeholder="Search clients, contacts, buildings, notes" autocomplete="off" />
             </label>
-            <button id="addClientBtn" class="primary-btn" type="button">
+            <button id="addClientBtn" class="primary-btn add-client-action" type="button">
               <span aria-hidden="true">+</span>
               Add client
             </button>
+            <button id="addBuildingBtn" class="primary-btn add-building-action" type="button" hidden>
+              <span aria-hidden="true">+</span>
+              Add building
+            </button>
           </div>
         </section>
+
+        <nav class="tabbar" aria-label="CRM sections">
+          <button class="tab-btn is-active" type="button" data-view="clients">Clients</button>
+          <button class="tab-btn" type="button" data-view="buildings">Buildings</button>
+        </nav>
 
         <section class="summary-grid" aria-label="Pipeline summary">
           <article class="summary-card">
@@ -54,32 +63,24 @@
             <strong id="buildingMetric">0</strong>
           </article>
           <article class="summary-card">
-            <span>Active statuses</span>
+            <span>Open items</span>
             <strong id="statusMetric">0</strong>
           </article>
         </section>
 
-        <section id="pipelineView" class="view is-visible" aria-label="Clients">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Company</th>
-                  <th>Buildings</th>
-                  <th>Contact</th>
-                  <th>Phone</th>
-                  <th>Email</th>
-                  <th>Status</th>
-                  <th>Updated</th>
-                  <th aria-label="Actions"></th>
-                </tr>
-              </thead>
-              <tbody id="clientRows"></tbody>
-            </table>
-          </div>
-          <div id="emptyState" class="empty-state" hidden>
+        <section id="clientsView" class="view is-visible" aria-label="Clients">
+          <div id="clientList" class="card-list"></div>
+          <div id="clientEmptyState" class="empty-state" hidden>
             <strong>No clients yet</strong>
-            <span>Add the first SNS opportunity when you are ready.</span>
+            <span>Add the parent company/client first. Then add buildings under that client.</span>
+          </div>
+        </section>
+
+        <section id="buildingsView" class="view" aria-label="Buildings">
+          <div id="buildingList" class="card-list"></div>
+          <div id="buildingEmptyState" class="empty-state" hidden>
+            <strong>No buildings yet</strong>
+            <span>Open a client and add buildings/properties under that parent client.</span>
           </div>
         </section>
       </section>
@@ -88,14 +89,14 @@
     <dialog id="clientDialog">
       <form id="clientForm" method="dialog">
         <div class="dialog-head">
-          <h2 id="dialogTitle">Add client</h2>
+          <h2 id="clientDialogTitle">Add client</h2>
           <button class="icon-btn close-dialog" type="button" aria-label="Close">x</button>
         </div>
 
         <input id="clientId" type="hidden" />
         <div class="form-grid">
           <label>
-            Company name
+            Client / parent company
             <input id="companyInput" required maxlength="120" autocomplete="organization" />
           </label>
           <label>
@@ -124,17 +125,13 @@
             </select>
           </label>
           <label class="notes-label">
-            Buildings / properties
-            <textarea id="buildingsInput" rows="5" maxlength="3000" placeholder="One per line. Example:&#10;Eastbrook Healthcare Center | 17322 Euclid Ave, Cleveland, OH | Prospective | 109-Room Property"></textarea>
-          </label>
-          <label class="notes-label">
-            Notes
-            <textarea id="notesInput" rows="5" maxlength="2000"></textarea>
+            Client notes
+            <textarea id="notesInput" rows="5" maxlength="2000" placeholder="Where are we holding with this client?"></textarea>
           </label>
         </div>
 
         <div class="dialog-actions">
-          <button id="deleteClientBtn" class="danger-btn" type="button">Delete</button>
+          <button id="deleteClientBtn" class="danger-btn" type="button">Delete client</button>
           <span></span>
           <button class="secondary-btn close-dialog" type="button">Cancel</button>
           <button id="saveClientBtn" class="primary-btn" value="default" type="submit">Save client</button>
@@ -142,23 +139,60 @@
       </form>
     </dialog>
 
-    <template id="rowTemplate">
-      <tr class="client-row">
-        <td data-label="Company" class="company-cell">
-          <button class="row-link company-name" type="button"></button>
-        </td>
-        <td data-label="Buildings" class="buildings-cell"></td>
-        <td data-label="Contact" class="contact-cell"></td>
-        <td data-label="Phone" class="phone-cell"></td>
-        <td data-label="Email" class="email-cell"></td>
-        <td data-label="Status"><span class="status-pill"></span></td>
-        <td data-label="Updated" class="updated-cell"></td>
-        <td class="action-cell">
-          <button class="icon-btn edit-btn" type="button" aria-label="Edit client">Edit</button>
-        </td>
-      </tr>
-    </template>
+    <dialog id="buildingDialog">
+      <form id="buildingForm" method="dialog">
+        <div class="dialog-head">
+          <h2 id="buildingDialogTitle">Add building</h2>
+          <button class="icon-btn close-dialog" type="button" aria-label="Close">x</button>
+        </div>
 
-    <script src="./app.js?v=20260504-2" type="module"></script>
+        <input id="buildingId" type="hidden" />
+        <div class="form-grid">
+          <label>
+            Parent client
+            <select id="buildingClientInput" required></select>
+          </label>
+          <label>
+            Building / property name
+            <input id="buildingNameInput" required maxlength="160" />
+          </label>
+          <label class="notes-label">
+            Address
+            <input id="buildingAddressInput" maxlength="220" />
+          </label>
+          <label>
+            Building status
+            <select id="buildingStatusInput">
+              <option>Prospective</option>
+              <option>Need contact</option>
+              <option>Need bills</option>
+              <option>Follow up</option>
+              <option>Contract sent</option>
+              <option>Contract signed</option>
+              <option>Installation started</option>
+              <option>Installation done</option>
+              <option>Dead / not a fit</option>
+            </select>
+          </label>
+          <label>
+            Description
+            <input id="buildingDescriptionInput" maxlength="120" placeholder="83-room property, 70-unit property, etc." />
+          </label>
+          <label class="notes-label">
+            Building notes
+            <textarea id="buildingNotesInput" rows="6" maxlength="3000" placeholder="Where are we holding with this building? Water bills, contact attempts, contract status, install notes, blockers, next step."></textarea>
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="deleteBuildingBtn" class="danger-btn" type="button">Delete building</button>
+          <span></span>
+          <button class="secondary-btn close-dialog" type="button">Cancel</button>
+          <button id="saveBuildingBtn" class="primary-btn" value="default" type="submit">Save building</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./app.js?v=20260504-3" type="module"></script>
   </body>
 </html>
