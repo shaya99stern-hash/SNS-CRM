@@ -1,62 +1,49 @@
 const STORAGE_KEY = "sns-crm-clients";
-const IMPORTED_SCREENSHOT_CLIENT_ID = "sns-imported-building-prospects-2026-05-04";
-
-const IMPORTED_CLIENTS = [
-  {
-    id: IMPORTED_SCREENSHOT_CLIENT_ID,
-    company: "SNS Building Prospects",
-    contact: "",
-    phone: "",
-    email: "",
-    status: "Prospective",
-    buildings: [
-      { name: "Arlington Senior Living", address: "684 Arlington Pl, Macon, GA 31201, USA", status: "Prospective", description: "83-Room Property" },
-      { name: "Autumnwood Care Center 22919 sewer", address: "670 OH-18, Tiffin, OH 44883, USA", status: "Prospective", description: "83-Room Property" },
-      { name: "Avondale Health and Rehabilitation Center", address: "2031 Avondale St, Humboldt, TN 38343, USA", status: "Prospective", description: "62-Room Property" },
-      { name: "Bethesda Care Center", address: "600 N Brush St, Fremont, OH 43420, USA", status: "Prospective", description: "79-Room Property" },
-      { name: "Eastbrook Healthcare Center - sewer", address: "17322 Euclid Ave, Cleveland, OH 44112, USA", status: "Prospective", description: "109-Room Property" },
-      { name: "Edward", address: "1744 Oak Ave, Evanston, IL 60201, USA", status: "Prospective", description: "50-Room Property" },
-      { name: "Hudson Springs Nursing & Rehab - Providing Onsite Ventilator Care", address: "5000 Sowul Blvd, Stow, OH 44224, USA", status: "Prospective", description: "40-Room Property" },
-      { name: "HYDE PARK APT LLC", address: "2741 Jester Ln, Columbus, OH 43231, USA", status: "Prospective", description: "100-Room Property" },
-      { name: "Lyonsview", address: "5837 Lyons View Pike, Knoxville, TN 37919, USA", status: "Prospective", description: "104-Room Property" },
-      { name: "Marion Rehabilitation", address: "175 Community Dr, Marion, OH 43302, USA", status: "Prospective", description: "99-Room Property" },
-      { name: "Newark Rehabilitation", address: "75 McMillen Dr, Newark, OH 43055, USA", status: "Prospective", description: "145-Room Property" },
-      { name: "Okeena Health and Rehabilitation Center", address: "1900 Parr Ave, Dyersburg, TN 38024, USA", status: "Prospective", description: "130-Room Property" },
-      { name: "Patriot", address: "800 Volunteer Dr, Paris, TN 38242, USA", status: "Prospective", description: "120-Room Property" },
-      { name: "Valley Forge Medical Center & Hospital", address: "1033 W Germantown Pike, Norristown, PA 19403, USA", status: "Prospective", description: "70-Unit Property" },
-      { name: "Warren Nursing & Rehab - Providing Onsite Dialysis & Ventilator", address: "2473 North Rd NE, Warren, OH 44483, USA", status: "Prospective", description: "107-Room Property" },
-    ],
-    notes: "Imported from SNS screenshot. Review truncated names/addresses where needed.",
-    updated_at: "2026-05-04T22:00:00.000Z",
-  },
-];
+const BAD_IMPORT_ID = "sns-imported-building-prospects-2026-05-04";
 
 const state = {
   clients: [],
   search: "",
+  view: "clients",
 };
 
 const els = {
   totalCount: document.querySelector("#totalCount"),
+  pageTitle: document.querySelector("#pageTitle"),
   clientMetric: document.querySelector("#clientMetric"),
   buildingMetric: document.querySelector("#buildingMetric"),
   statusMetric: document.querySelector("#statusMetric"),
-  rows: document.querySelector("#clientRows"),
-  empty: document.querySelector("#emptyState"),
-  template: document.querySelector("#rowTemplate"),
-  dialog: document.querySelector("#clientDialog"),
-  form: document.querySelector("#clientForm"),
-  dialogTitle: document.querySelector("#dialogTitle"),
-  deleteBtn: document.querySelector("#deleteClientBtn"),
+  search: document.querySelector("#searchInput"),
+  addClientBtn: document.querySelector("#addClientBtn"),
+  addBuildingBtn: document.querySelector("#addBuildingBtn"),
+  clientsView: document.querySelector("#clientsView"),
+  buildingsView: document.querySelector("#buildingsView"),
+  clientList: document.querySelector("#clientList"),
+  buildingList: document.querySelector("#buildingList"),
+  clientEmpty: document.querySelector("#clientEmptyState"),
+  buildingEmpty: document.querySelector("#buildingEmptyState"),
+  clientDialog: document.querySelector("#clientDialog"),
+  clientForm: document.querySelector("#clientForm"),
+  clientDialogTitle: document.querySelector("#clientDialogTitle"),
+  deleteClientBtn: document.querySelector("#deleteClientBtn"),
   clientId: document.querySelector("#clientId"),
   company: document.querySelector("#companyInput"),
   contact: document.querySelector("#contactInput"),
   phone: document.querySelector("#phoneInput"),
   email: document.querySelector("#emailInput"),
   status: document.querySelector("#statusInput"),
-  buildings: document.querySelector("#buildingsInput"),
   notes: document.querySelector("#notesInput"),
-  search: document.querySelector("#searchInput"),
+  buildingDialog: document.querySelector("#buildingDialog"),
+  buildingForm: document.querySelector("#buildingForm"),
+  buildingDialogTitle: document.querySelector("#buildingDialogTitle"),
+  deleteBuildingBtn: document.querySelector("#deleteBuildingBtn"),
+  buildingId: document.querySelector("#buildingId"),
+  buildingClient: document.querySelector("#buildingClientInput"),
+  buildingName: document.querySelector("#buildingNameInput"),
+  buildingAddress: document.querySelector("#buildingAddressInput"),
+  buildingStatus: document.querySelector("#buildingStatusInput"),
+  buildingDescription: document.querySelector("#buildingDescriptionInput"),
+  buildingNotes: document.querySelector("#buildingNotesInput"),
 };
 
 init();
@@ -72,202 +59,281 @@ async function init() {
 }
 
 function bindEvents() {
-  document.querySelector("#addClientBtn").addEventListener("click", () => openClientDialog());
+  els.addClientBtn.addEventListener("click", () => openClientDialog());
+  els.addBuildingBtn.addEventListener("click", () => openBuildingDialog());
+
+  document.querySelectorAll(".tab-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.view = button.dataset.view;
+      render();
+    });
+  });
 
   els.search.addEventListener("input", (event) => {
     state.search = event.target.value.trim().toLowerCase();
     render();
   });
 
-  els.form.addEventListener("submit", async (event) => {
+  els.clientForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     await saveClient();
   });
 
-  document.querySelectorAll(".close-dialog").forEach((button) => {
-    button.addEventListener("click", () => els.dialog.close());
+  els.buildingForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await saveBuilding();
   });
 
-  els.deleteBtn.addEventListener("click", async () => {
+  document.querySelectorAll(".close-dialog").forEach((button) => {
+    button.addEventListener("click", () => button.closest("dialog")?.close());
+  });
+
+  els.deleteClientBtn.addEventListener("click", async () => {
     if (!els.clientId.value) return;
     await deleteClient(els.clientId.value);
-    els.dialog.close();
+    els.clientDialog.close();
+  });
+
+  els.deleteBuildingBtn.addEventListener("click", async () => {
+    if (!els.buildingId.value) return;
+    await deleteBuilding(els.buildingId.value);
+    els.buildingDialog.close();
   });
 }
 
 async function loadClients() {
-  state.clients = mergeImportedClients(readLocalClients().map(normalizeClient));
+  state.clients = readLocalClients()
+    .filter((client) => client.id !== BAD_IMPORT_ID && client.company !== "SNS Building Prospects")
+    .map(normalizeClient);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
 }
 
 function readLocalClients() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? seedClients();
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return seedClients();
+    return [];
   }
-}
-
-function seedClients() {
-  const sample = [...IMPORTED_CLIENTS];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(sample));
-  return sample;
-}
-
-function mergeImportedClients(existingClients) {
-  const clients = [...existingClients];
-
-  IMPORTED_CLIENTS.forEach((importedClient) => {
-    const existingIndex = clients.findIndex((client) => client.id === importedClient.id);
-    if (existingIndex >= 0) {
-      clients[existingIndex] = normalizeClient({ ...clients[existingIndex], ...importedClient });
-      return;
-    }
-
-    const oldDemoIndex = clients.findIndex((client) => client.company === "Example Medical Center");
-    if (oldDemoIndex >= 0 && clients.length === 1) {
-      clients.splice(oldDemoIndex, 1, normalizeClient(importedClient));
-      return;
-    }
-
-    clients.unshift(normalizeClient(importedClient));
-  });
-
-  return clients.map(normalizeClient);
 }
 
 function render() {
-  const clients = filteredClients();
-  els.rows.innerHTML = "";
-
-  clients.forEach((client) => {
-    const row = els.template.content.firstElementChild.cloneNode(true);
-    const open = () => openClientDialog(client);
-    row.querySelector(".company-name").textContent = client.company;
-    row.querySelector(".company-name").addEventListener("click", open);
-    renderBuildings(row.querySelector(".buildings-cell"), client);
-    row.querySelector(".contact-cell").textContent = client.contact || "-";
-    setLinkedValue(row.querySelector(".phone-cell"), client.phone, `tel:${digitsOnly(client.phone)}`);
-    setLinkedValue(row.querySelector(".email-cell"), client.email, `mailto:${client.email}`);
-
-    const status = row.querySelector(".status-pill");
-    status.textContent = client.status || "Had initial meeting";
-    status.classList.add(`status-${className(client.status || "Had initial meeting")}`);
-
-    row.querySelector(".updated-cell").textContent = formatDate(client.updated_at);
-    row.querySelector(".edit-btn").addEventListener("click", open);
-    els.rows.append(row);
-  });
-
-  renderEmptyState(clients);
+  renderShell();
   renderMetrics();
+  renderClients();
+  renderBuildings();
 }
 
-function renderEmptyState(filtered) {
-  if (state.clients.length === 0) {
-    els.empty.hidden = false;
-    els.empty.querySelector("strong").textContent = "No clients yet";
-    els.empty.querySelector("span").textContent = "Add the first SNS opportunity when you are ready.";
-    return;
-  }
-
-  if (filtered.length === 0) {
-    els.empty.hidden = false;
-    els.empty.querySelector("strong").textContent = "No matching clients found";
-    els.empty.querySelector("span").textContent = "Try a different company, contact, building, phone, email, status, or note.";
-    return;
-  }
-
-  els.empty.hidden = true;
+function renderShell() {
+  const isBuildings = state.view === "buildings";
+  els.pageTitle.textContent = isBuildings ? "Buildings" : "Clients";
+  els.addClientBtn.hidden = isBuildings;
+  els.addBuildingBtn.hidden = !isBuildings;
+  els.clientsView.classList.toggle("is-visible", !isBuildings);
+  els.buildingsView.classList.toggle("is-visible", isBuildings);
+  document.querySelectorAll(".tab-btn").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.view === state.view);
+  });
 }
 
 function renderMetrics() {
-  const buildings = state.clients.flatMap((client) => client.buildings ?? []);
-  const statuses = new Set(
-    state.clients
-      .map((client) => client.status)
-      .filter(Boolean)
-  );
-
+  const buildings = allBuildings();
+  const openItems = buildings.filter((item) => !["Installation done", "Dead / not a fit"].includes(item.building.status)).length;
   els.totalCount.textContent = state.clients.length;
   els.clientMetric.textContent = state.clients.length;
   els.buildingMetric.textContent = buildings.length;
-  els.statusMetric.textContent = statuses.size;
+  els.statusMetric.textContent = openItems;
 }
 
-function renderBuildings(cell, client) {
-  cell.textContent = "";
-  const buildings = client.buildings ?? [];
+function renderClients() {
+  const clients = filteredClients();
+  els.clientList.innerHTML = "";
 
-  if (buildings.length === 0) {
-    const empty = document.createElement("span");
-    empty.className = "muted-text";
-    empty.textContent = "No buildings listed";
-    cell.append(empty);
-    return;
-  }
+  clients.forEach((client) => {
+    const card = document.createElement("article");
+    card.className = "crm-card client-card";
 
-  const list = document.createElement("div");
-  list.className = "building-list";
+    const header = document.createElement("div");
+    header.className = "card-header";
 
-  buildings.forEach((building) => {
-    const item = document.createElement("div");
-    item.className = "building-item";
+    const title = document.createElement("button");
+    title.className = "card-title-link";
+    title.type = "button";
+    title.textContent = client.company;
+    title.addEventListener("click", () => openClientDialog(client));
 
-    const name = document.createElement("strong");
-    name.textContent = building.name;
+    const status = pill(client.status || "Prospective", "status-pill");
+    header.append(title, status);
 
-    const meta = document.createElement("span");
-    meta.className = "building-meta";
-    meta.textContent = [building.address, building.description].filter(Boolean).join(" | ");
+    const meta = document.createElement("div");
+    meta.className = "card-grid";
+    meta.append(
+      field("Contact", client.contact || "-"),
+      linkedField("Phone", client.phone, `tel:${digitsOnly(client.phone)}`),
+      linkedField("Email", client.email, `mailto:${client.email}`),
+      field("Buildings", String((client.buildings ?? []).length)),
+      field("Updated", formatDate(client.updated_at)),
+    );
 
-    const status = document.createElement("span");
-    status.className = `building-status status-${className(building.status || client.status || "Had initial meeting")}`;
-    status.textContent = building.status || client.status || "Had initial meeting";
+    if (client.notes) meta.append(field("Notes", client.notes, true));
 
-    item.append(name);
-    if (meta.textContent) item.append(meta);
-    item.append(status);
-    list.append(item);
+    const buildingPreview = document.createElement("div");
+    buildingPreview.className = "inline-building-list";
+    (client.buildings ?? []).slice(0, 4).forEach((building) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "inline-building";
+      button.textContent = building.name;
+      button.addEventListener("click", () => openBuildingDialog(client, building));
+      buildingPreview.append(button);
+    });
+
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
+    const addBuilding = document.createElement("button");
+    addBuilding.className = "secondary-btn";
+    addBuilding.type = "button";
+    addBuilding.textContent = "+ Add building";
+    addBuilding.addEventListener("click", () => openBuildingDialog(client));
+    const edit = document.createElement("button");
+    edit.className = "secondary-btn";
+    edit.type = "button";
+    edit.textContent = "Edit client";
+    edit.addEventListener("click", () => openClientDialog(client));
+    actions.append(addBuilding, edit);
+
+    card.append(header, meta);
+    if (buildingPreview.children.length) card.append(buildingPreview);
+    card.append(actions);
+    els.clientList.append(card);
   });
 
-  cell.append(list);
+  setEmptyState(els.clientEmpty, state.clients.length === 0, clients.length === 0, "No matching clients found", "Try a different client, contact, building, phone, email, status, or note.");
+}
+
+function renderBuildings() {
+  const buildings = filteredBuildings();
+  els.buildingList.innerHTML = "";
+
+  buildings.forEach(({ client, building }) => {
+    const card = document.createElement("article");
+    card.className = "crm-card building-card";
+    card.addEventListener("click", () => openBuildingDialog(client, building));
+
+    const header = document.createElement("div");
+    header.className = "card-header";
+    const title = document.createElement("button");
+    title.className = "card-title-link";
+    title.type = "button";
+    title.textContent = building.name;
+    title.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openBuildingDialog(client, building);
+    });
+    header.append(title, pill(building.status || "Prospective", "status-pill"));
+
+    const meta = document.createElement("div");
+    meta.className = "card-grid";
+    meta.append(
+      field("Client", client.company),
+      field("Address", building.address || "-", true),
+      field("Description", building.description || "-"),
+      field("Notes", building.notes || "-", true),
+    );
+
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
+    const edit = document.createElement("button");
+    edit.className = "secondary-btn";
+    edit.type = "button";
+    edit.textContent = "Open / edit building";
+    edit.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openBuildingDialog(client, building);
+    });
+    actions.append(edit);
+
+    card.append(header, meta, actions);
+    els.buildingList.append(card);
+  });
+
+  const totalBuildings = allBuildings().length;
+  setEmptyState(els.buildingEmpty, totalBuildings === 0, buildings.length === 0, "No matching buildings found", "Try a different building, client, address, status, or note.");
+}
+
+function setEmptyState(element, noneAtAll, noneFiltered, filteredTitle, filteredBody) {
+  if (noneAtAll) {
+    element.hidden = false;
+    return;
+  }
+  if (noneFiltered) {
+    element.hidden = false;
+    element.querySelector("strong").textContent = filteredTitle;
+    element.querySelector("span").textContent = filteredBody;
+    return;
+  }
+  element.hidden = true;
 }
 
 function filteredClients() {
-  return state.clients.filter((client) => {
-    const buildingText = (client.buildings ?? [])
-      .map((building) => `${building.name} ${building.address ?? ""} ${building.description ?? ""} ${building.status}`)
-      .join(" ");
-    const haystack = [
-      client.company,
-      client.contact,
-      client.phone,
-      client.email,
-      client.status,
-      buildingText,
-      client.notes,
-    ]
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(state.search);
-  });
+  return state.clients.filter((client) => searchTextForClient(client).includes(state.search));
+}
+
+function filteredBuildings() {
+  return allBuildings().filter(({ client, building }) => searchTextForBuilding(client, building).includes(state.search));
+}
+
+function allBuildings() {
+  return state.clients.flatMap((client) =>
+    (client.buildings ?? []).map((building) => ({ client, building })),
+  );
 }
 
 function openClientDialog(client = null) {
-  els.form.reset();
+  els.clientForm.reset();
   els.clientId.value = client?.id ?? "";
-  els.dialogTitle.textContent = client ? "Edit client" : "Add client";
-  els.deleteBtn.hidden = !client;
+  els.clientDialogTitle.textContent = client ? "Edit client" : "Add client";
+  els.deleteClientBtn.hidden = !client;
   els.company.value = client?.company ?? "";
   els.contact.value = client?.contact ?? "";
   els.phone.value = client?.phone ?? "";
   els.email.value = client?.email ?? "";
-  els.status.value = client?.status ?? "Had initial meeting";
-  els.buildings.value = serializeBuildings(client?.buildings ?? []);
+  els.status.value = client?.status ?? "Prospective";
   els.notes.value = client?.notes ?? "";
-  els.dialog.showModal();
+  els.clientDialog.showModal();
   els.company.focus();
+}
+
+function openBuildingDialog(client = null, building = null) {
+  if (!state.clients.length) {
+    openClientDialog();
+    return;
+  }
+
+  els.buildingForm.reset();
+  renderClientOptions(client?.id);
+  els.buildingId.value = building?.id ?? "";
+  els.buildingDialogTitle.textContent = building ? "Edit building" : "Add building";
+  els.deleteBuildingBtn.hidden = !building;
+  if (client?.id) els.buildingClient.value = client.id;
+  els.buildingName.value = building?.name ?? "";
+  els.buildingAddress.value = building?.address ?? "";
+  els.buildingStatus.value = building?.status ?? "Prospective";
+  els.buildingDescription.value = building?.description ?? "";
+  els.buildingNotes.value = building?.notes ?? "";
+  els.buildingDialog.showModal();
+  els.buildingName.focus();
+}
+
+function renderClientOptions(selectedId = "") {
+  els.buildingClient.innerHTML = "";
+  state.clients.forEach((client) => {
+    const option = document.createElement("option");
+    option.value = client.id;
+    option.textContent = client.company;
+    option.selected = client.id === selectedId;
+    els.buildingClient.append(option);
+  });
 }
 
 async function saveClient() {
@@ -278,7 +344,6 @@ async function saveClient() {
     phone: els.phone.value.trim(),
     email: els.email.value.trim(),
     status: els.status.value,
-    buildings: parseBuildings(els.buildings.value, els.status.value),
     notes: els.notes.value.trim(),
     updated_at: new Date().toISOString(),
   };
@@ -288,73 +353,140 @@ async function saveClient() {
   const clients = [...state.clients];
   if (existingId) {
     const index = clients.findIndex((client) => client.id === existingId);
-    if (index >= 0) {
-      clients[index] = normalizeClient({ ...clients[index], ...payload });
-    }
+    if (index >= 0) clients[index] = normalizeClient({ ...clients[index], ...payload });
   } else {
-    clients.unshift(normalizeClient({ id: crypto.randomUUID(), ...payload }));
+    clients.unshift(normalizeClient({ id: crypto.randomUUID(), buildings: [], ...payload }));
   }
-  state.clients = clients;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(clients));
 
-  els.dialog.close();
-  render();
+  state.clients = clients;
+  persistAndRender();
+  els.clientDialog.close();
+}
+
+async function saveBuilding() {
+  const selectedClientId = els.buildingClient.value;
+  const selectedClient = state.clients.find((client) => client.id === selectedClientId);
+  if (!selectedClient || !els.buildingName.value.trim()) return;
+
+  const buildingId = els.buildingId.value || crypto.randomUUID();
+  const payload = normalizeBuilding({
+    id: buildingId,
+    name: els.buildingName.value.trim(),
+    address: els.buildingAddress.value.trim(),
+    status: els.buildingStatus.value,
+    description: els.buildingDescription.value.trim(),
+    notes: els.buildingNotes.value.trim(),
+    updated_at: new Date().toISOString(),
+  }, selectedClient.status);
+
+  state.clients = state.clients.map((client) => {
+    const buildings = client.buildings ?? [];
+    const withoutBuilding = buildings.filter((building) => building.id !== buildingId);
+    if (client.id !== selectedClientId) return normalizeClient({ ...client, buildings: withoutBuilding });
+
+    const existingIndex = buildings.findIndex((building) => building.id === buildingId);
+    const nextBuildings = existingIndex >= 0
+      ? buildings.map((building) => building.id === buildingId ? payload : building)
+      : [payload, ...withoutBuilding];
+
+    return normalizeClient({ ...client, buildings: nextBuildings, updated_at: new Date().toISOString() });
+  });
+
+  persistAndRender();
+  els.buildingDialog.close();
 }
 
 async function deleteClient(id) {
   state.clients = state.clients.filter((client) => client.id !== id);
+  persistAndRender();
+}
+
+async function deleteBuilding(id) {
+  state.clients = state.clients.map((client) => normalizeClient({
+    ...client,
+    buildings: (client.buildings ?? []).filter((building) => building.id !== id),
+  }));
+  persistAndRender();
+}
+
+function persistAndRender() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
   render();
 }
 
 function normalizeClient(client) {
   return {
-    ...client,
+    id: client.id || crypto.randomUUID(),
+    company: String(client.company ?? "").trim(),
+    contact: String(client.contact ?? "").trim(),
+    phone: String(client.phone ?? "").trim(),
+    email: String(client.email ?? "").trim(),
+    status: String(client.status ?? "Prospective").trim(),
+    notes: String(client.notes ?? "").trim(),
+    updated_at: client.updated_at || new Date().toISOString(),
     buildings: Array.isArray(client.buildings)
-      ? client.buildings.map((building) => ({
-          name: String(building.name ?? "").trim(),
-          address: String(building.address ?? "").trim(),
-          status: String(building.status ?? client.status ?? "Had initial meeting").trim(),
-          description: String(building.description ?? "").trim(),
-        })).filter((building) => building.name)
+      ? client.buildings.map((building) => normalizeBuilding(building, client.status)).filter((building) => building.name)
       : [],
   };
 }
 
-function parseBuildings(value, defaultStatus) {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.split(/\s+\|\s+|\s+-\s+/).map((part) => part.trim()).filter(Boolean);
-      return {
-        name: parts[0] ?? "",
-        address: parts[1] ?? "",
-        status: parts[2] ?? defaultStatus ?? "Had initial meeting",
-        description: parts[3] ?? "",
-      };
-    })
-    .filter((building) => building.name);
+function normalizeBuilding(building, defaultStatus = "Prospective") {
+  return {
+    id: building.id || crypto.randomUUID(),
+    name: String(building.name ?? "").trim(),
+    address: String(building.address ?? "").trim(),
+    status: String(building.status ?? defaultStatus ?? "Prospective").trim(),
+    description: String(building.description ?? "").trim(),
+    notes: String(building.notes ?? "").trim(),
+    updated_at: building.updated_at || new Date().toISOString(),
+  };
 }
 
-function serializeBuildings(buildings) {
-  return buildings
-    .map((building) => [building.name, building.address, building.status, building.description].filter(Boolean).join(" | "))
-    .join("\n");
+function searchTextForClient(client) {
+  return [
+    client.company,
+    client.contact,
+    client.phone,
+    client.email,
+    client.status,
+    client.notes,
+    ...(client.buildings ?? []).flatMap((building) => [building.name, building.address, building.status, building.description, building.notes]),
+  ].join(" ").toLowerCase();
 }
 
-function setLinkedValue(cell, value, href) {
-  cell.textContent = "";
-  if (!value) {
-    cell.textContent = "-";
-    return;
-  }
+function searchTextForBuilding(client, building) {
+  return [client.company, client.contact, building.name, building.address, building.status, building.description, building.notes].join(" ").toLowerCase();
+}
 
+function field(label, value, wide = false) {
+  const wrapper = document.createElement("div");
+  wrapper.className = wide ? "field-row is-wide" : "field-row";
+  const labelEl = document.createElement("span");
+  labelEl.textContent = label;
+  const valueEl = document.createElement("strong");
+  valueEl.textContent = value;
+  wrapper.append(labelEl, valueEl);
+  return wrapper;
+}
+
+function linkedField(label, value, href) {
+  if (!value) return field(label, "-");
+  const wrapper = document.createElement("div");
+  wrapper.className = "field-row";
+  const labelEl = document.createElement("span");
+  labelEl.textContent = label;
   const link = document.createElement("a");
   link.href = href;
   link.textContent = value;
-  cell.append(link);
+  wrapper.append(labelEl, link);
+  return wrapper;
+}
+
+function pill(text, classNameValue) {
+  const el = document.createElement("span");
+  el.className = `${classNameValue} status-${className(text)}`;
+  el.textContent = text;
+  return el;
 }
 
 function digitsOnly(value = "") {
@@ -372,5 +504,5 @@ function formatDate(value) {
 }
 
 function className(value) {
-  return value.replace(/\s+/g, "-");
+  return String(value).replace(/\s+|\//g, "-");
 }
