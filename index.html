@@ -30,12 +30,12 @@
         <section class="topbar" aria-label="CRM controls">
           <div>
             <p class="eyebrow">SNS account desk</p>
-            <h1>Clients</h1>
+            <h1>Client Pipeline</h1>
           </div>
           <div class="topbar-actions">
             <label class="search-field">
               <span aria-hidden="true">?</span>
-              <input id="searchInput" type="search" placeholder="Search clients, contacts, notes" autocomplete="off" />
+              <input id="searchInput" type="search" placeholder="Search clients, contacts, buildings, notes" autocomplete="off" />
             </label>
             <button id="addClientBtn" class="primary-btn" type="button">
               <span aria-hidden="true">+</span>
@@ -44,13 +44,28 @@
           </div>
         </section>
 
+        <section class="summary-grid" aria-label="Pipeline summary">
+          <article class="summary-card">
+            <span>Clients</span>
+            <strong id="clientMetric">0</strong>
+          </article>
+          <article class="summary-card">
+            <span>Buildings</span>
+            <strong id="buildingMetric">0</strong>
+          </article>
+          <article class="summary-card">
+            <span>Active statuses</span>
+            <strong id="statusMetric">0</strong>
+          </article>
+        </section>
+
         <section id="pipelineView" class="view is-visible" aria-label="Clients">
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Company</th>
-                  <th>Notes</th>
+                  <th>Buildings</th>
                   <th>Contact</th>
                   <th>Phone</th>
                   <th>Email</th>
@@ -61,10 +76,10 @@
               </thead>
               <tbody id="clientRows"></tbody>
             </table>
-            <div id="emptyState" class="empty-state" hidden>
-              <strong>No clients yet</strong>
-              <span>Add the first SNS opportunity when you are ready.</span>
-            </div>
+          </div>
+          <div id="emptyState" class="empty-state" hidden>
+            <strong>No clients yet</strong>
+            <span>Add the first SNS opportunity when you are ready.</span>
           </div>
         </section>
       </section>
@@ -96,7 +111,7 @@
             <input id="emailInput" type="email" maxlength="160" autocomplete="email" />
           </label>
           <label>
-            Status
+            Client status
             <select id="statusInput">
               <option>Had initial meeting</option>
               <option>Interested</option>
@@ -106,6 +121,10 @@
               <option>Installation started</option>
               <option>Installation done</option>
             </select>
+          </label>
+          <label class="notes-label">
+            Buildings / properties
+            <textarea id="buildingsInput" rows="5" maxlength="3000" placeholder="One per line. Example:&#10;Eastbrook Healthcare Center - Contract sent&#10;Autumnwood Care Center - Follow up"></textarea>
           </label>
           <label class="notes-label">
             Notes
@@ -127,7 +146,7 @@
         <td data-label="Company" class="company-cell">
           <button class="row-link company-name" type="button"></button>
         </td>
-        <td data-label="Notes" class="notes-cell"></td>
+        <td data-label="Buildings" class="buildings-cell"></td>
         <td data-label="Contact" class="contact-cell"></td>
         <td data-label="Phone" class="phone-cell"></td>
         <td data-label="Email" class="email-cell"></td>
