@@ -1,9 +1,9 @@
-const CACHE_NAME = "sns-crm-v6";
+const CACHE_NAME = "sns-crm-v7";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=20260504-2",
-  "./app.js?v=20260504-2",
+  "./styles.css?v=20260504-3",
+  "./app.js?v=20260504-3",
   "./manifest.webmanifest",
   "./assets/icon.svg",
 ];
