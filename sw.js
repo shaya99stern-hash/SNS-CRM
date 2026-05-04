@@ -1,4 +1,4 @@
-const CACHE_NAME = "sns-crm-v2";
+const CACHE_NAME = "sns-crm-v3";
 const ASSETS = [
   "./",
   "./index.html",
