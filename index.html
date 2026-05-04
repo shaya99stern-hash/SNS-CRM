@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon.svg" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260504-2" />
   </head>
   <body>
     <main class="app-shell">
@@ -113,6 +113,7 @@
           <label>
             Client status
             <select id="statusInput">
+              <option>Prospective</option>
               <option>Had initial meeting</option>
               <option>Interested</option>
               <option>Follow up</option>
@@ -124,7 +125,7 @@
           </label>
           <label class="notes-label">
             Buildings / properties
-            <textarea id="buildingsInput" rows="5" maxlength="3000" placeholder="One per line. Example:&#10;Eastbrook Healthcare Center - Contract sent&#10;Autumnwood Care Center - Follow up"></textarea>
+            <textarea id="buildingsInput" rows="5" maxlength="3000" placeholder="One per line. Example:&#10;Eastbrook Healthcare Center | 17322 Euclid Ave, Cleveland, OH | Prospective | 109-Room Property"></textarea>
           </label>
           <label class="notes-label">
             Notes
@@ -158,6 +159,6 @@
       </tr>
     </template>
 
-    <script src="./app.js" type="module"></script>
+    <script src="./app.js?v=20260504-2" type="module"></script>
   </body>
 </html>
