@@ -6,15 +6,15 @@
     <meta name="theme-color" content="#005b93" />
     <title>SNS Leads</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" href="./assets/icon.svg?v=20260504-5" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="./assets/icon.svg?v=20260504-5" />
-    <link rel="stylesheet" href="./styles.css?v=20260504-5" />
+    <link rel="icon" href="./assets/icon.svg?v=20260504-7" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/icon.svg?v=20260504-7" />
+    <link rel="stylesheet" href="./styles.css?v=20260504-7" />
   </head>
   <body>
     <main class="app-shell">
       <header class="masthead">
         <div class="brand">
-          <img src="./assets/icon.svg?v=20260504-5" alt="The Water Scrooge" width="54" height="54" />
+          <img src="./assets/icon.svg?v=20260504-7" alt="The Water Scrooge" width="54" height="54" />
           <div>
             <strong>SNS Leads</strong>
             <span>The Water Scrooge</span>
@@ -113,14 +113,33 @@
             Client status
             <select id="statusInput">
               <option>Prospective</option>
-              <option>Had initial meeting</option>
-              <option>Interested</option>
+              <option>Meeting scheduled</option>
+              <option>Met</option>
               <option>Follow up</option>
-              <option>Sent contract</option>
-              <option>Contract signed</option>
-              <option>Installation started</option>
-              <option>Installation done</option>
+              <option>Need next step</option>
+              <option>Closed</option>
+              <option>No close</option>
             </select>
+          </label>
+          <label>
+            Meeting date
+            <input id="meetingDateInput" type="date" />
+          </label>
+          <label>
+            Meeting owner
+            <input id="meetingOwnerInput" maxlength="80" placeholder="Dan, Jack, etc." />
+          </label>
+          <label>
+            Next step
+            <input id="nextStepInput" maxlength="180" placeholder="What has to happen next?" />
+          </label>
+          <label class="notes-label">
+            Follow up / comment
+            <textarea id="followUpInput" rows="4" maxlength="2000" placeholder="Follow-up notes, comments, reminders, what was said."></textarea>
+          </label>
+          <label class="notes-label">
+            Close / no close
+            <input id="closeStatusInput" maxlength="160" placeholder="Closed, no close, still open, reason, etc." />
           </label>
           <label class="notes-label">
             Client notes
@@ -191,6 +210,6 @@
       </form>
     </dialog>
 
-    <script src="./app.js?v=20260504-5" type="module"></script>
+    <script src="./app.js?v=20260504-7" type="module"></script>
   </body>
 </html>
