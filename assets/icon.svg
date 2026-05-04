@@ -1,6 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SNS CRM">
-  <rect width="512" height="512" rx="96" fill="#153d35"/>
-  <path d="M112 330c58 38 112 38 168 0 43-29 80-32 120-10" fill="none" stroke="#f4c95d" stroke-width="38" stroke-linecap="round"/>
-  <path d="M112 236c58 38 112 38 168 0 43-29 80-32 120-10" fill="none" stroke="#d8f2ec" stroke-width="38" stroke-linecap="round"/>
-  <path d="M112 142c58 38 112 38 168 0 43-29 80-32 120-10" fill="none" stroke="#5bbfae" stroke-width="38" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="The Water Scrooge">
+  <rect width="512" height="512" rx="96" fill="#005b93"/>
+  <circle cx="256" cy="256" r="176" fill="#ffffff"/>
+  <circle cx="256" cy="256" r="144" fill="#005b93"/>
+  <circle cx="256" cy="256" r="118" fill="none" stroke="#ffffff" stroke-width="10" stroke-dasharray="18 14" opacity="0.95"/>
+  <path d="M164 200c34-34 68-34 102 0s68 34 102 0" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round"/>
+  <path d="M164 254c34-34 68-34 102 0s68 34 102 0" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round" opacity="0.9"/>
+  <path d="M164 308c34-34 68-34 102 0s68 34 102 0" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round" opacity="0.82"/>
+  <text x="256" y="126" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="800" letter-spacing="4">THE WATER</text>
+  <text x="256" y="393" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="900" letter-spacing="4">SCROOGE</text>
 </svg>
