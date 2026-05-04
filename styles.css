@@ -360,18 +360,31 @@ tbody tr:hover {
 
 .building-list {
   display: grid;
-  gap: 7px;
+  gap: 10px;
 }
 
 .building-item {
+  border-bottom: 1px solid rgba(215, 223, 220, 0.75);
   display: grid;
   gap: 5px;
+  padding-bottom: 9px;
+}
+
+.building-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .building-item strong {
   color: var(--ink);
   font-size: 0.9rem;
   line-height: 1.2;
+}
+
+.building-meta {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.25;
 }
 
 .building-status {
@@ -406,7 +419,9 @@ tbody tr:hover {
 .status-Follow-up,
 .status-Sent-contract,
 .status-Sent-contract.building-status,
-.status-Follow-up.building-status {
+.status-Follow-up.building-status,
+.status-Prospective,
+.status-Prospective.building-status {
   background: #eef5fb;
   color: var(--blue);
 }
