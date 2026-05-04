@@ -7,6 +7,9 @@ const state = {
 
 const els = {
   totalCount: document.querySelector("#totalCount"),
+  clientMetric: document.querySelector("#clientMetric"),
+  buildingMetric: document.querySelector("#buildingMetric"),
+  statusMetric: document.querySelector("#statusMetric"),
   rows: document.querySelector("#clientRows"),
   empty: document.querySelector("#emptyState"),
   template: document.querySelector("#rowTemplate"),
@@ -20,6 +23,7 @@ const els = {
   phone: document.querySelector("#phoneInput"),
   email: document.querySelector("#emailInput"),
   status: document.querySelector("#statusInput"),
+  buildings: document.querySelector("#buildingsInput"),
   notes: document.querySelector("#notesInput"),
   search: document.querySelector("#searchInput"),
 };
@@ -61,7 +65,8 @@ function bindEvents() {
 }
 
 async function loadClients() {
-  state.clients = readLocalClients();
+  state.clients = readLocalClients().map(normalizeClient);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
 }
 
 function readLocalClients() {
@@ -81,6 +86,7 @@ function seedClients() {
       phone: "",
       email: "",
       status: "Had initial meeting",
+      buildings: [],
       notes: "Replace this with a real SNS client.",
       updated_at: new Date().toISOString(),
     },
@@ -98,7 +104,7 @@ function render() {
     const open = () => openClientDialog(client);
     row.querySelector(".company-name").textContent = client.company;
     row.querySelector(".company-name").addEventListener("click", open);
-    row.querySelector(".notes-cell").textContent = client.notes || "-";
+    renderBuildings(row.querySelector(".buildings-cell"), client);
     row.querySelector(".contact-cell").textContent = client.contact || "-";
     setLinkedValue(row.querySelector(".phone-cell"), client.phone, `tel:${digitsOnly(client.phone)}`);
     setLinkedValue(row.querySelector(".email-cell"), client.email, `mailto:${client.email}`);
@@ -112,29 +118,87 @@ function render() {
     els.rows.append(row);
   });
 
+  renderEmptyState(clients);
+  renderMetrics();
+}
+
+function renderEmptyState(filtered) {
   if (state.clients.length === 0) {
     els.empty.hidden = false;
     els.empty.querySelector("strong").textContent = "No clients yet";
     els.empty.querySelector("span").textContent = "Add the first SNS opportunity when you are ready.";
-  } else if (clients.length === 0) {
-    els.empty.hidden = false;
-    els.empty.querySelector("strong").textContent = "No matching clients found";
-    els.empty.querySelector("span").textContent = "Try a different company, contact, phone, email, status, or note.";
-  } else {
-    els.empty.hidden = true;
+    return;
   }
 
+  if (filtered.length === 0) {
+    els.empty.hidden = false;
+    els.empty.querySelector("strong").textContent = "No matching clients found";
+    els.empty.querySelector("span").textContent = "Try a different company, contact, building, phone, email, status, or note.";
+    return;
+  }
+
+  els.empty.hidden = true;
+}
+
+function renderMetrics() {
+  const buildings = state.clients.flatMap((client) => client.buildings ?? []);
+  const statuses = new Set(
+    state.clients
+      .map((client) => client.status)
+      .filter(Boolean)
+  );
+
   els.totalCount.textContent = state.clients.length;
+  els.clientMetric.textContent = state.clients.length;
+  els.buildingMetric.textContent = buildings.length;
+  els.statusMetric.textContent = statuses.size;
+}
+
+function renderBuildings(cell, client) {
+  cell.textContent = "";
+  const buildings = client.buildings ?? [];
+
+  if (buildings.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "muted-text";
+    empty.textContent = "No buildings listed";
+    cell.append(empty);
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "building-list";
+
+  buildings.forEach((building) => {
+    const item = document.createElement("div");
+    item.className = "building-item";
+
+    const name = document.createElement("strong");
+    name.textContent = building.name;
+
+    const status = document.createElement("span");
+    status.className = `building-status status-${className(building.status || client.status || "Had initial meeting")}`;
+    status.textContent = building.status || client.status || "Had initial meeting";
+
+    item.append(name, status);
+    list.append(item);
+  });
+
+  cell.append(list);
 }
 
 function filteredClients() {
   return state.clients.filter((client) => {
+    const buildingText = (client.buildings ?? [])
+      .map((building) => `${building.name} ${building.status}`)
+      .join(" ");
     const haystack = [
       client.company,
       client.contact,
       client.phone,
       client.email,
       client.status,
+      buildingText,
       client.notes,
     ]
       .join(" ")
@@ -153,6 +217,7 @@ function openClientDialog(client = null) {
   els.phone.value = client?.phone ?? "";
   els.email.value = client?.email ?? "";
   els.status.value = client?.status ?? "Had initial meeting";
+  els.buildings.value = serializeBuildings(client?.buildings ?? []);
   els.notes.value = client?.notes ?? "";
   els.dialog.showModal();
   els.company.focus();
@@ -166,6 +231,7 @@ async function saveClient() {
     phone: els.phone.value.trim(),
     email: els.email.value.trim(),
     status: els.status.value,
+    buildings: parseBuildings(els.buildings.value, els.status.value),
     notes: els.notes.value.trim(),
     updated_at: new Date().toISOString(),
   };
@@ -176,10 +242,10 @@ async function saveClient() {
   if (existingId) {
     const index = clients.findIndex((client) => client.id === existingId);
     if (index >= 0) {
-      clients[index] = { ...clients[index], ...payload };
+      clients[index] = normalizeClient({ ...clients[index], ...payload });
     }
   } else {
-    clients.unshift({ id: crypto.randomUUID(), ...payload });
+    clients.unshift(normalizeClient({ id: crypto.randomUUID(), ...payload }));
   }
   state.clients = clients;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(clients));
@@ -192,6 +258,39 @@ async function deleteClient(id) {
   state.clients = state.clients.filter((client) => client.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
   render();
+}
+
+function normalizeClient(client) {
+  return {
+    ...client,
+    buildings: Array.isArray(client.buildings)
+      ? client.buildings.map((building) => ({
+          name: String(building.name ?? "").trim(),
+          status: String(building.status ?? client.status ?? "Had initial meeting").trim(),
+        })).filter((building) => building.name)
+      : [],
+  };
+}
+
+function parseBuildings(value, defaultStatus) {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name, ...statusParts] = line.split(/\s+-\s+/);
+      return {
+        name: name.trim(),
+        status: (statusParts.join(" - ").trim() || defaultStatus || "Had initial meeting"),
+      };
+    })
+    .filter((building) => building.name);
+}
+
+function serializeBuildings(buildings) {
+  return buildings
+    .map((building) => `${building.name}${building.status ? ` - ${building.status}` : ""}`)
+    .join("\n");
 }
 
 function setLinkedValue(cell, value, href) {
