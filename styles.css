@@ -38,18 +38,25 @@ button {
 }
 
 .app-shell {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  max-width: 1460px;
+  margin: 0 auto;
   min-height: 100vh;
+  padding: 28px;
 }
 
-.sidebar {
+.masthead {
   background: #153d35;
+  border-radius: 8px;
   color: #f6fbfa;
-  padding: 24px;
   display: flex;
-  flex-direction: column;
-  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+}
+
+.content-shell {
+  padding-top: 24px;
 }
 
 .brand {
@@ -69,26 +76,18 @@ button {
   margin-top: 2px;
 }
 
-.sidebar-stats {
-  margin-top: auto;
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
-  padding-top: 20px;
+.masthead-stats {
   display: grid;
   gap: 3px;
+  text-align: right;
 }
 
-.sidebar-stats span,
-.sidebar-stats small {
+.masthead-stats span {
   color: #b9d3cc;
 }
 
-.sidebar-stats strong {
-  font-size: 2rem;
-}
-
-main {
-  min-width: 0;
-  padding: 28px;
+.masthead-stats strong {
+  font-size: 1.8rem;
 }
 
 .topbar {
@@ -240,6 +239,7 @@ tbody tr:hover {
 }
 
 .company-name,
+.notes-cell,
 .contact-cell,
 .phone-cell,
 .email-cell,
@@ -263,8 +263,14 @@ tbody tr:hover {
 .contact-cell,
 .phone-cell,
 .email-cell,
+.notes-cell,
 .updated-cell {
   color: var(--muted);
+}
+
+.notes-cell {
+  max-width: 280px;
+  white-space: pre-wrap;
 }
 
 .status-pill {
@@ -280,11 +286,12 @@ tbody tr:hover {
 }
 
 .status-Follow-up,
-.status-Contract-sent {
+.status-Sent-contract {
   background: #eef5fb;
   color: var(--blue);
 }
 
+.status-Interested,
 .status-Contract-signed {
   background: #fff5df;
   color: var(--gold);
@@ -344,15 +351,6 @@ textarea {
   resize: vertical;
 }
 
-pre {
-  background: #111917;
-  color: #e9f5f1;
-  border-radius: 8px;
-  margin: 14px 0 0;
-  overflow: auto;
-  padding: 16px;
-}
-
 dialog {
   border: 0;
   border-radius: 8px;
@@ -370,8 +368,7 @@ dialog::backdrop {
 }
 
 .dialog-head,
-.dialog-actions,
-.form-actions {
+.dialog-actions {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -398,24 +395,16 @@ dialog::backdrop {
 
 @media (max-width: 980px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    padding: 18px;
   }
 
-  .sidebar {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    padding: 14px 18px;
-    flex-direction: row;
-    align-items: center;
+  .masthead {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  .sidebar-stats {
-    display: none;
-  }
-
-  main {
-    padding: 20px;
+  .masthead-stats {
+    text-align: left;
   }
 
   .topbar {
@@ -433,16 +422,6 @@ dialog::backdrop {
 }
 
 @media (max-width: 720px) {
-  main {
-    padding: 16px;
-  }
-
-  .sidebar {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 12px;
-  }
-
   .topbar-actions,
   .form-grid {
     grid-template-columns: 1fr;
