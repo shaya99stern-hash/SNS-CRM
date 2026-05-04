@@ -1,11 +1,8 @@
 const STORAGE_KEY = "sns-crm-clients";
-const CONFIG_KEY = "sns-crm-supabase";
 
 const state = {
   clients: [],
-  filter: "all",
   search: "",
-  config: readConfig(),
 };
 
 const els = {
@@ -64,15 +61,6 @@ function bindEvents() {
 }
 
 async function loadClients() {
-  if (hasSupabaseConfig()) {
-    try {
-      state.clients = await supabaseRequest("/clients?select=*&order=updated_at.desc");
-      return;
-    } catch (error) {
-      console.warn("Supabase load failed, falling back to local storage.", error);
-    }
-  }
-
   state.clients = readLocalClients();
 }
 
@@ -110,6 +98,7 @@ function render() {
     const open = () => openClientDialog(client);
     row.querySelector(".company-name").textContent = client.company;
     row.querySelector(".company-name").addEventListener("click", open);
+    row.querySelector(".notes-cell").textContent = client.notes || "-";
     row.querySelector(".contact-cell").textContent = client.contact || "-";
     row.querySelector(".phone-cell").textContent = client.phone || "-";
     row.querySelector(".email-cell").textContent = client.email || "-";
@@ -172,71 +161,24 @@ async function saveClient() {
 
   if (!payload.company) return;
 
-  if (hasSupabaseConfig()) {
-    const endpoint = existingId ? `/clients?id=eq.${existingId}` : "/clients";
-    const method = existingId ? "PATCH" : "POST";
-    await supabaseRequest(endpoint, {
-      method,
-      body: JSON.stringify(payload),
-      headers: { Prefer: "return=representation" },
-    });
-    await loadClients();
+  const clients = [...state.clients];
+  if (existingId) {
+    const index = clients.findIndex((client) => client.id === existingId);
+    clients[index] = { ...clients[index], ...payload };
   } else {
-    const clients = [...state.clients];
-    if (existingId) {
-      const index = clients.findIndex((client) => client.id === existingId);
-      clients[index] = { ...clients[index], ...payload };
-    } else {
-      clients.unshift({ id: crypto.randomUUID(), ...payload });
-    }
-    state.clients = clients;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(clients));
+    clients.unshift({ id: crypto.randomUUID(), ...payload });
   }
+  state.clients = clients;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(clients));
 
   els.dialog.close();
   render();
 }
 
 async function deleteClient(id) {
-  if (hasSupabaseConfig()) {
-    await supabaseRequest(`/clients?id=eq.${id}`, { method: "DELETE" });
-    await loadClients();
-  } else {
-    state.clients = state.clients.filter((client) => client.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
-  }
+  state.clients = state.clients.filter((client) => client.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
   render();
-}
-
-async function supabaseRequest(path, options = {}) {
-  const response = await fetch(`${state.config.url}/rest/v1${path}`, {
-    ...options,
-    headers: {
-      apikey: state.config.key,
-      Authorization: `Bearer ${state.config.key}`,
-      "Content-Type": "application/json",
-      ...(options.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Supabase request failed: ${response.status}`);
-  }
-
-  if (response.status === 204) return [];
-  return response.json();
-}
-
-function hasSupabaseConfig() {
-  return Boolean(state.config.url && state.config.key);
-}
-
-function readConfig() {
-  try {
-    return JSON.parse(localStorage.getItem(CONFIG_KEY)) ?? {};
-  } catch {
-    return {};
-  }
 }
 
 function formatDate(value) {
