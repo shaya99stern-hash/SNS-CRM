@@ -1,12 +1,3 @@
-const STATUSES = [
-  "Meet",
-  "Follow up",
-  "Contract sent",
-  "Negotiations",
-  "Order received",
-  "Installation done",
-];
-
 const STORAGE_KEY = "sns-crm-clients";
 const CONFIG_KEY = "sns-crm-supabase";
 
@@ -18,12 +9,7 @@ const state = {
 };
 
 const els = {
-  syncState: document.querySelector("#syncState"),
   totalCount: document.querySelector("#totalCount"),
-  meetCount: document.querySelector("#meetCount"),
-  followUpCount: document.querySelector("#followUpCount"),
-  orderCount: document.querySelector("#orderCount"),
-  installCount: document.querySelector("#installCount"),
   rows: document.querySelector("#clientRows"),
   empty: document.querySelector("#emptyState"),
   template: document.querySelector("#rowTemplate"),
@@ -34,26 +20,17 @@ const els = {
   clientId: document.querySelector("#clientId"),
   company: document.querySelector("#companyInput"),
   contact: document.querySelector("#contactInput"),
-  propertyType: document.querySelector("#propertyTypeInput"),
-  siteSize: document.querySelector("#siteSizeInput"),
-  interest: document.querySelector("#interestInput"),
   phone: document.querySelector("#phoneInput"),
   email: document.querySelector("#emailInput"),
   status: document.querySelector("#statusInput"),
-  order: document.querySelector("#orderInput"),
   notes: document.querySelector("#notesInput"),
   search: document.querySelector("#searchInput"),
-  settingsForm: document.querySelector("#settingsForm"),
-  supabaseUrl: document.querySelector("#supabaseUrl"),
-  supabaseKey: document.querySelector("#supabaseKey"),
-  clearSettings: document.querySelector("#clearSettingsBtn"),
 };
 
 init();
 
 async function init() {
   bindEvents();
-  hydrateSettingsForm();
   await loadClients();
   render();
 
@@ -64,19 +41,6 @@ async function init() {
 
 function bindEvents() {
   document.querySelector("#addClientBtn").addEventListener("click", () => openClientDialog());
-
-  document.querySelectorAll(".nav-item").forEach((button) => {
-    button.addEventListener("click", () => switchView(button.dataset.view));
-  });
-
-  document.querySelectorAll(".segment").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.filter = button.dataset.filter;
-      document.querySelectorAll(".segment").forEach((item) => item.classList.remove("is-active"));
-      button.classList.add("is-active");
-      render();
-    });
-  });
 
   els.search.addEventListener("input", (event) => {
     state.search = event.target.value.trim().toLowerCase();
@@ -97,35 +61,6 @@ function bindEvents() {
     await deleteClient(els.clientId.value);
     els.dialog.close();
   });
-
-  els.settingsForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    state.config = {
-      url: els.supabaseUrl.value.trim().replace(/\/$/, ""),
-      key: els.supabaseKey.value.trim(),
-    };
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(state.config));
-    await loadClients();
-    render();
-    switchView("pipeline");
-  });
-
-  els.clearSettings.addEventListener("click", async () => {
-    localStorage.removeItem(CONFIG_KEY);
-    state.config = {};
-    hydrateSettingsForm();
-    await loadClients();
-    render();
-    switchView("pipeline");
-  });
-}
-
-function switchView(view) {
-  document.querySelectorAll(".nav-item").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.view === view);
-  });
-  document.querySelectorAll(".view").forEach((section) => section.classList.remove("is-visible"));
-  document.querySelector(`#${view}View`).classList.add("is-visible");
 }
 
 async function loadClients() {
@@ -155,13 +90,9 @@ function seedClients() {
       id: crypto.randomUUID(),
       company: "Example Medical Center",
       contact: "SNS demo contact",
-      property_type: "Multifamily",
-      site_size: "120 units",
-      interest: "Water consulting",
       phone: "",
       email: "",
-      status: "Meet",
-      order_received: false,
+      status: "Had initial meeting",
       notes: "Replace this with a real SNS client.",
       updated_at: new Date().toISOString(),
     },
@@ -176,44 +107,30 @@ function render() {
 
   clients.forEach((client) => {
     const row = els.template.content.firstElementChild.cloneNode(true);
+    const open = () => openClientDialog(client);
     row.querySelector(".company-name").textContent = client.company;
-    row.querySelector(".company-meta").textContent = client.interest || "No product interest";
-    row.querySelector(".property-type").textContent = client.property_type || "Multifamily";
-    row.querySelector(".site-size").textContent = client.site_size || "Size not set";
+    row.querySelector(".company-name").addEventListener("click", open);
     row.querySelector(".contact-cell").textContent = client.contact || "-";
+    row.querySelector(".phone-cell").textContent = client.phone || "-";
+    row.querySelector(".email-cell").textContent = client.email || "-";
 
     const status = row.querySelector(".status-pill");
-    status.textContent = client.status;
-    status.classList.add(`status-${className(client.status)}`);
+    status.textContent = client.status || "Had initial meeting";
+    status.classList.add(`status-${className(client.status || "Had initial meeting")}`);
 
-    const order = row.querySelector(".order-pill");
-    order.textContent = client.order_received ? "Received" : "Pending";
-    order.classList.add(client.order_received ? "order-yes" : "order-no");
-
-    row.querySelector(".notes-cell").textContent = client.notes || "-";
     row.querySelector(".updated-cell").textContent = formatDate(client.updated_at);
-    row.querySelector(".edit-btn").addEventListener("click", () => openClientDialog(client));
+    row.querySelector(".edit-btn").addEventListener("click", open);
     els.rows.append(row);
   });
 
   els.empty.hidden = clients.length > 0;
-  const total = state.clients.length;
-  els.totalCount.textContent = total;
-  els.meetCount.textContent = countByStatus("Meet");
-  els.followUpCount.textContent = countByStatus("Follow up");
-  els.orderCount.textContent = state.clients.filter((client) => client.order_received || client.status === "Order received").length;
-  els.installCount.textContent = countByStatus("Installation done");
-  els.syncState.textContent = hasSupabaseConfig() ? "Shared" : "Local";
+  els.totalCount.textContent = state.clients.length;
 }
 
 function filteredClients() {
   return state.clients.filter((client) => {
-    const matchesFilter = state.filter === "all" || client.status === state.filter;
     const haystack = [
       client.company,
-      client.property_type,
-      client.site_size,
-      client.interest,
       client.contact,
       client.phone,
       client.email,
@@ -222,12 +139,8 @@ function filteredClients() {
     ]
       .join(" ")
       .toLowerCase();
-    return matchesFilter && haystack.includes(state.search);
+    return haystack.includes(state.search);
   });
-}
-
-function countByStatus(status) {
-  return state.clients.filter((client) => client.status === status).length;
 }
 
 function openClientDialog(client = null) {
@@ -236,14 +149,10 @@ function openClientDialog(client = null) {
   els.dialogTitle.textContent = client ? "Edit client" : "Add client";
   els.deleteBtn.hidden = !client;
   els.company.value = client?.company ?? "";
-  els.propertyType.value = client?.property_type ?? "Multifamily";
-  els.siteSize.value = client?.site_size ?? "";
-  els.interest.value = client?.interest ?? "Water consulting";
   els.contact.value = client?.contact ?? "";
   els.phone.value = client?.phone ?? "";
   els.email.value = client?.email ?? "";
-  els.status.value = client?.status ?? "Meet";
-  els.order.checked = Boolean(client?.order_received);
+  els.status.value = client?.status ?? "Had initial meeting";
   els.notes.value = client?.notes ?? "";
   els.dialog.showModal();
   els.company.focus();
@@ -253,14 +162,10 @@ async function saveClient() {
   const existingId = els.clientId.value;
   const payload = {
     company: els.company.value.trim(),
-    property_type: els.propertyType.value,
-    site_size: els.siteSize.value.trim(),
-    interest: els.interest.value,
     contact: els.contact.value.trim(),
     phone: els.phone.value.trim(),
     email: els.email.value.trim(),
     status: els.status.value,
-    order_received: els.order.checked || els.status.value === "Order received",
     notes: els.notes.value.trim(),
     updated_at: new Date().toISOString(),
   };
@@ -332,11 +237,6 @@ function readConfig() {
   } catch {
     return {};
   }
-}
-
-function hydrateSettingsForm() {
-  els.supabaseUrl.value = state.config.url ?? "";
-  els.supabaseKey.value = state.config.key ?? "";
 }
 
 function formatDate(value) {
