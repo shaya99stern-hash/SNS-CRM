@@ -21,21 +21,10 @@
           </div>
         </div>
 
-        <nav class="nav-stack" aria-label="Views">
-          <button class="nav-item is-active" data-view="pipeline" type="button">
-            <span aria-hidden="true">#</span>
-            Pipeline
-          </button>
-          <button class="nav-item" data-view="settings" type="button">
-            <span aria-hidden="true">*</span>
-            Settings
-          </button>
-        </nav>
-
         <div class="sidebar-stats">
-          <span id="syncState">Local</span>
+          <span>Client pipeline</span>
           <strong id="totalCount">0</strong>
-          <small>active records</small>
+          <small>client records</small>
         </div>
       </aside>
 
@@ -58,47 +47,15 @@
         </section>
 
         <section id="pipelineView" class="view is-visible" aria-label="Client pipeline">
-          <div class="metrics" aria-label="Pipeline totals">
-            <div>
-              <span>Meet</span>
-              <strong id="meetCount">0</strong>
-            </div>
-            <div>
-              <span>Follow up</span>
-              <strong id="followUpCount">0</strong>
-            </div>
-            <div>
-              <span>Order received</span>
-              <strong id="orderCount">0</strong>
-            </div>
-            <div>
-              <span>Installation done</span>
-              <strong id="installCount">0</strong>
-            </div>
-          </div>
-
-          <div class="toolbar" aria-label="Filters">
-            <div class="segmented" role="group" aria-label="Status filter">
-              <button class="segment is-active" data-filter="all" type="button">All</button>
-              <button class="segment" data-filter="Meet" type="button">Meet</button>
-              <button class="segment" data-filter="Follow up" type="button">Follow up</button>
-              <button class="segment" data-filter="Contract sent" type="button">Contract sent</button>
-              <button class="segment" data-filter="Negotiations" type="button">Negotiations</button>
-              <button class="segment" data-filter="Order received" type="button">Order received</button>
-              <button class="segment" data-filter="Installation done" type="button">Installation done</button>
-            </div>
-          </div>
-
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Company</th>
-                  <th>Type</th>
                   <th>Contact</th>
+                  <th>Phone</th>
+                  <th>Email</th>
                   <th>Status</th>
-                  <th>Order</th>
-                  <th>Notes</th>
                   <th>Updated</th>
                   <th aria-label="Actions"></th>
                 </tr>
@@ -109,54 +66,6 @@
               <strong>No clients yet</strong>
               <span>Add the first SNS opportunity when you are ready.</span>
             </div>
-          </div>
-        </section>
-
-        <section id="settingsView" class="view" aria-label="Settings">
-          <div class="settings-layout">
-            <section class="panel">
-              <h2>Shared Data</h2>
-              <p>Use Supabase free tier when SNS users need the same live client list. Leave blank for private browser-only storage.</p>
-              <form id="settingsForm" class="settings-form">
-                <label>
-                  Supabase URL
-                  <input id="supabaseUrl" type="url" placeholder="https://your-project.supabase.co" autocomplete="off" />
-                </label>
-                <label>
-                  Supabase anon key
-                  <input id="supabaseKey" type="password" placeholder="Paste anon public key" autocomplete="off" />
-                </label>
-                <div class="form-actions">
-                  <button class="primary-btn" type="submit">Save settings</button>
-                  <button id="clearSettingsBtn" class="secondary-btn" type="button">Use local only</button>
-                </div>
-              </form>
-            </section>
-
-            <section class="panel">
-              <h2>Supabase Table SQL</h2>
-              <pre><code>create table public.clients (
-  id uuid primary key default gen_random_uuid(),
-  company text not null,
-  contact text,
-  phone text,
-  email text,
-  status text not null default 'Meet',
-  property_type text not null default 'Multifamily',
-  site_size text,
-  interest text,
-  order_received boolean not null default false,
-  notes text,
-  updated_at timestamptz not null default now()
-);
-
-alter table public.clients enable row level security;
-
-create policy "Allow public CRM access"
-on public.clients for all
-using (true)
-with check (true);</code></pre>
-            </section>
           </div>
         </section>
       </main>
@@ -176,31 +85,6 @@ with check (true);</code></pre>
             <input id="companyInput" required maxlength="120" autocomplete="organization" />
           </label>
           <label>
-            Property type
-            <select id="propertyTypeInput">
-              <option>Multifamily</option>
-              <option>Nursing home</option>
-              <option>Assisted living</option>
-              <option>Other</option>
-            </select>
-          </label>
-          <label>
-            Units / beds
-            <input id="siteSizeInput" maxlength="80" placeholder="120 units, 85 beds" />
-          </label>
-          <label>
-            Product interest
-            <select id="interestInput">
-              <option>Water consulting</option>
-              <option>Shower flow controller</option>
-              <option>Toilet leak prevention</option>
-              <option>Smart water valve</option>
-              <option>White-glove installation</option>
-              <option>Shared savings program</option>
-              <option>Not sure yet</option>
-            </select>
-          </label>
-          <label>
             Contact person
             <input id="contactInput" maxlength="120" autocomplete="name" />
           </label>
@@ -215,17 +99,13 @@ with check (true);</code></pre>
           <label>
             Status
             <select id="statusInput">
-              <option>Meet</option>
+              <option>Had initial meeting</option>
               <option>Follow up</option>
               <option>Contract sent</option>
-              <option>Negotiations</option>
-              <option>Order received</option>
+              <option>Contract signed</option>
+              <option>Installation started</option>
               <option>Installation done</option>
             </select>
-          </label>
-          <label class="checkbox-row">
-            <input id="orderInput" type="checkbox" />
-            Order received
           </label>
           <label class="notes-label">
             Notes
@@ -243,19 +123,14 @@ with check (true);</code></pre>
     </dialog>
 
     <template id="rowTemplate">
-      <tr>
-        <td data-label="Company">
-          <strong class="company-name"></strong>
-          <span class="company-meta"></span>
-        </td>
-        <td data-label="Type">
-          <strong class="property-type"></strong>
-          <span class="site-size"></span>
+      <tr class="client-row">
+        <td data-label="Company" class="company-cell">
+          <button class="row-link company-name" type="button"></button>
         </td>
         <td data-label="Contact" class="contact-cell"></td>
+        <td data-label="Phone" class="phone-cell"></td>
+        <td data-label="Email" class="email-cell"></td>
         <td data-label="Status"><span class="status-pill"></span></td>
-        <td data-label="Order"><span class="order-pill"></span></td>
-        <td data-label="Notes" class="notes-cell"></td>
         <td data-label="Updated" class="updated-cell"></td>
         <td class="action-cell">
           <button class="icon-btn edit-btn" type="button" aria-label="Edit client">Edit</button>
