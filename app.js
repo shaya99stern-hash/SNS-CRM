@@ -7,6 +7,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_kLYPu63cO2j-4ocFZEFuLg_jE3Ge2Pe";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let realtimeRefreshTimer = null;
 let isSaving = false;
+let isRefreshing = false;
 
 const IMPORTED_CONTACTS = [
   {
@@ -84,6 +85,7 @@ const els = {
   clientMetric: $("#clientMetric"),
   buildingMetric: $("#buildingMetric"),
   search: $("#searchInput"),
+  refreshBtn: $("#refreshBtn"),
   addClientBtn: $("#addClientBtn"),
   addBuildingBtn: $("#addBuildingBtn"),
   clientsView: $("#clientsView"),
@@ -132,6 +134,7 @@ async function init() {
 }
 
 function bindEvents() {
+  els.refreshBtn?.addEventListener("click", manualRefresh);
   els.addClientBtn.addEventListener("click", () => openClientDialog());
   els.addBuildingBtn.addEventListener("click", () => openBuildingDialog());
   document.querySelectorAll(".tab-btn").forEach((button) => {
@@ -167,6 +170,24 @@ function bindEvents() {
   });
 }
 
+async function manualRefresh() {
+  if (isRefreshing || isSaving) return;
+  isRefreshing = true;
+  if (els.refreshBtn) {
+    els.refreshBtn.disabled = true;
+    els.refreshBtn.textContent = "Refreshing...";
+  }
+  await refreshFromRemote(true);
+  if (els.refreshBtn) {
+    els.refreshBtn.textContent = "✓ Updated";
+    setTimeout(() => {
+      els.refreshBtn.textContent = "↻ Refresh";
+      els.refreshBtn.disabled = false;
+    }, 900);
+  }
+  isRefreshing = false;
+}
+
 async function loadClients() {
   const localClients = readLocalClients()
     .filter((client) => client.id !== BAD_IMPORT_ID && client.company !== "SNS Building Prospects")
@@ -195,7 +216,7 @@ async function loadClients() {
   }
 }
 
-async function refreshFromRemote() {
+async function refreshFromRemote(showAlert = false) {
   if (isSaving) return;
   try {
     const remoteClients = await fetchRemoteClients();
@@ -205,6 +226,7 @@ async function refreshFromRemote() {
     render();
   } catch (error) {
     console.warn("Realtime refresh failed", error);
+    if (showAlert) alert("Refresh failed. Check connection and try again.");
   }
 }
 
