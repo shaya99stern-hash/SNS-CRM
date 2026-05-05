@@ -1,11 +1,11 @@
-const CACHE_NAME = "sns-crm-v14";
+const CACHE_NAME = "sns-crm-v15";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=20260504-11",
-  "./app.js?v=20260504-11",
+  "./styles.css?v=20260504-12",
+  "./app.js?v=20260504-12",
   "./manifest.webmanifest",
-  "./assets/icon.svg?v=20260504-11",
+  "./assets/icon.svg?v=20260504-12",
 ];
 
 self.addEventListener("install", (event) => {
