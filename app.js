@@ -1,5 +1,12 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const STORAGE_KEY = "sns-crm-clients";
 const BAD_IMPORT_ID = "sns-imported-building-prospects-2026-05-04";
+const SUPABASE_URL = "https://ximyxslvdcbqexiopgpm.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_kLYPu63cO2j-4ocFZEFuLg_jE3Ge2Pe";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let realtimeRefreshTimer = null;
+let isSaving = false;
 
 const IMPORTED_CONTACTS = [
   {
@@ -68,9 +75,9 @@ const IMPORTED_CONTACTS = [
   },
 ];
 
-const state = { clients: [], search: "", view: "clients" };
-
+const state = { clients: [], search: "", view: "clients", syncStatus: "local" };
 const $ = (selector) => document.querySelector(selector);
+
 const els = {
   totalCount: $("#totalCount"),
   pageTitle: $("#pageTitle"),
@@ -119,6 +126,7 @@ init();
 async function init() {
   bindEvents();
   await loadClients();
+  subscribeToRealtime();
   render();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
@@ -160,11 +168,101 @@ function bindEvents() {
 }
 
 async function loadClients() {
-  const existing = readLocalClients()
+  const localClients = readLocalClients()
     .filter((client) => client.id !== BAD_IMPORT_ID && client.company !== "SNS Building Prospects")
     .map(normalizeClient);
-  state.clients = mergeImportedContacts(existing);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
+
+  try {
+    const remoteClients = await fetchRemoteClients();
+    if (remoteClients.length) {
+      state.clients = remoteClients;
+      state.syncStatus = "live";
+      cacheLocal();
+      return;
+    }
+
+    const seedClients = mergeImportedContacts(localClients);
+    await seedRemoteIfEmpty(seedClients);
+    state.clients = await fetchRemoteClients();
+    if (!state.clients.length) state.clients = seedClients;
+    state.syncStatus = "live";
+    cacheLocal();
+  } catch (error) {
+    console.warn("Supabase unavailable; using local fallback", error);
+    state.clients = mergeImportedContacts(localClients);
+    state.syncStatus = "local";
+    cacheLocal();
+  }
+}
+
+async function refreshFromRemote() {
+  if (isSaving) return;
+  try {
+    const remoteClients = await fetchRemoteClients();
+    state.clients = remoteClients;
+    state.syncStatus = "live";
+    cacheLocal();
+    render();
+  } catch (error) {
+    console.warn("Realtime refresh failed", error);
+  }
+}
+
+function subscribeToRealtime() {
+  supabase
+    .channel("sns-leads-shared-sync")
+    .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, scheduleRealtimeRefresh)
+    .on("postgres_changes", { event: "*", schema: "public", table: "buildings" }, scheduleRealtimeRefresh)
+    .subscribe();
+}
+
+function scheduleRealtimeRefresh() {
+  clearTimeout(realtimeRefreshTimer);
+  realtimeRefreshTimer = setTimeout(refreshFromRemote, 350);
+}
+
+async function fetchRemoteClients() {
+  const { data: clientRows, error: clientError } = await supabase
+    .from("clients")
+    .select("*")
+    .order("updated_at", { ascending: false });
+  if (clientError) throw clientError;
+
+  const { data: buildingRows, error: buildingError } = await supabase
+    .from("buildings")
+    .select("*")
+    .order("updated_at", { ascending: false });
+  if (buildingError) throw buildingError;
+
+  const buildingsByClient = new Map();
+  (buildingRows ?? []).forEach((row) => {
+    const building = normalizeBuilding(fromBuildingRow(row));
+    const list = buildingsByClient.get(row.client_id) ?? [];
+    list.push(building);
+    buildingsByClient.set(row.client_id, list);
+  });
+
+  return (clientRows ?? []).map((row) => normalizeClient({
+    ...fromClientRow(row),
+    buildings: buildingsByClient.get(row.id) ?? [],
+  }));
+}
+
+async function seedRemoteIfEmpty(seedClients) {
+  const { count, error } = await supabase.from("clients").select("id", { count: "exact", head: true });
+  if (error) throw error;
+  if (count && count > 0) return;
+
+  const clientRows = seedClients.map(toClientRow);
+  const buildingRows = seedClients.flatMap((client) => (client.buildings ?? []).map((building) => toBuildingRow(client.id, building)));
+  if (clientRows.length) {
+    const { error: clientError } = await supabase.from("clients").upsert(clientRows, { onConflict: "id" });
+    if (clientError) throw clientError;
+  }
+  if (buildingRows.length) {
+    const { error: buildingError } = await supabase.from("buildings").upsert(buildingRows, { onConflict: "id" });
+    if (buildingError) throw buildingError;
+  }
 }
 
 function readLocalClients() {
@@ -176,11 +274,14 @@ function readLocalClients() {
   }
 }
 
+function cacheLocal() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
+}
+
 function mergeImportedContacts(existingClients) {
   const byId = new Map(existingClients.map((client) => [client.id, client]));
   IMPORTED_CONTACTS.forEach((client) => {
-    const existing = byId.get(client.id);
-    byId.set(client.id, normalizeClient({ ...client, ...(existing ?? {}), ...client }));
+    if (!byId.has(client.id)) byId.set(client.id, normalizeClient(client));
   });
   return Array.from(byId.values()).map(normalizeClient);
 }
@@ -401,7 +502,8 @@ function renderClientOptions(selectedId = "") {
 
 async function saveClient() {
   const existingId = els.clientId.value;
-  const payload = {
+  const payload = normalizeClient({
+    id: existingId || crypto.randomUUID(),
     company: els.company.value.trim(),
     contact: els.contact.value.trim(),
     phone: els.phone.value.trim(),
@@ -414,17 +516,31 @@ async function saveClient() {
     close_status: els.closeStatus.value.trim(),
     notes: els.notes.value.trim(),
     updated_at: new Date().toISOString(),
-  };
+    buildings: existingId ? state.clients.find((client) => client.id === existingId)?.buildings ?? [] : [],
+  });
   if (!payload.company) return;
-  const clients = [...state.clients];
-  if (existingId) {
-    const index = clients.findIndex((client) => client.id === existingId);
-    if (index >= 0) clients[index] = normalizeClient({ ...clients[index], ...payload });
-  } else {
-    clients.unshift(normalizeClient({ id: crypto.randomUUID(), buildings: [], ...payload }));
+
+  const previousClients = [...state.clients];
+  state.clients = existingId
+    ? state.clients.map((client) => client.id === existingId ? payload : client)
+    : [payload, ...state.clients];
+  cacheLocal();
+  render();
+
+  try {
+    isSaving = true;
+    const { error } = await supabase.from("clients").upsert(toClientRow(payload), { onConflict: "id" });
+    if (error) throw error;
+    state.syncStatus = "live";
+  } catch (error) {
+    console.error("Client save failed", error);
+    state.clients = previousClients;
+    cacheLocal();
+    render();
+    alert("Save failed. Supabase tables may not be created yet.");
+  } finally {
+    isSaving = false;
   }
-  state.clients = clients;
-  persistAndRender();
   els.clientDialog.close();
 }
 
@@ -432,6 +548,7 @@ async function saveBuilding() {
   const selectedClientId = els.buildingClient.value;
   const selectedClient = state.clients.find((client) => client.id === selectedClientId);
   if (!selectedClient || !els.buildingName.value.trim()) return;
+
   const buildingId = els.buildingId.value || crypto.randomUUID();
   const payload = normalizeBuilding({
     id: buildingId,
@@ -442,41 +559,79 @@ async function saveBuilding() {
     notes: els.buildingNotes.value.trim(),
     updated_at: new Date().toISOString(),
   }, selectedClient.status);
+
+  const previousClients = [...state.clients];
   state.clients = state.clients.map((client) => {
-    const buildings = client.buildings ?? [];
-    const withoutBuilding = buildings.filter((building) => building.id !== buildingId);
+    const withoutBuilding = (client.buildings ?? []).filter((building) => building.id !== buildingId);
     if (client.id !== selectedClientId) return normalizeClient({ ...client, buildings: withoutBuilding });
-    const existingIndex = buildings.findIndex((building) => building.id === buildingId);
-    const nextBuildings = existingIndex >= 0
-      ? buildings.map((building) => building.id === buildingId ? payload : building)
-      : [payload, ...withoutBuilding];
-    return normalizeClient({ ...client, buildings: nextBuildings, updated_at: new Date().toISOString() });
+    return normalizeClient({ ...client, buildings: [payload, ...withoutBuilding], updated_at: new Date().toISOString() });
   });
-  persistAndRender();
+  cacheLocal();
+  render();
+
+  try {
+    isSaving = true;
+    const { error } = await supabase.from("buildings").upsert(toBuildingRow(selectedClientId, payload), { onConflict: "id" });
+    if (error) throw error;
+    state.syncStatus = "live";
+  } catch (error) {
+    console.error("Building save failed", error);
+    state.clients = previousClients;
+    cacheLocal();
+    render();
+    alert("Building save failed. Supabase tables may not be created yet.");
+  } finally {
+    isSaving = false;
+  }
   els.buildingDialog.close();
 }
 
 async function deleteClient(id) {
+  const previousClients = [...state.clients];
   state.clients = state.clients.filter((client) => client.id !== id);
-  persistAndRender();
+  cacheLocal();
+  render();
+  try {
+    isSaving = true;
+    const { error } = await supabase.from("clients").delete().eq("id", id);
+    if (error) throw error;
+  } catch (error) {
+    console.error("Delete client failed", error);
+    state.clients = previousClients;
+    cacheLocal();
+    render();
+    alert("Delete failed.");
+  } finally {
+    isSaving = false;
+  }
 }
 
 async function deleteBuilding(id) {
+  const previousClients = [...state.clients];
   state.clients = state.clients.map((client) => normalizeClient({
     ...client,
     buildings: (client.buildings ?? []).filter((building) => building.id !== id),
   }));
-  persistAndRender();
-}
-
-function persistAndRender() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.clients));
+  cacheLocal();
   render();
+  try {
+    isSaving = true;
+    const { error } = await supabase.from("buildings").delete().eq("id", id);
+    if (error) throw error;
+  } catch (error) {
+    console.error("Delete building failed", error);
+    state.clients = previousClients;
+    cacheLocal();
+    render();
+    alert("Delete failed.");
+  } finally {
+    isSaving = false;
+  }
 }
 
 function normalizeClient(client) {
   return {
-    id: client.id || crypto.randomUUID(),
+    id: String(client.id || crypto.randomUUID()),
     company: String(client.company ?? "").trim(),
     contact: String(client.contact ?? "").trim(),
     phone: String(client.phone ?? "").trim(),
@@ -497,13 +652,75 @@ function normalizeClient(client) {
 
 function normalizeBuilding(building, defaultStatus = "Prospective") {
   return {
-    id: building.id || crypto.randomUUID(),
+    id: String(building.id || crypto.randomUUID()),
     name: String(building.name ?? "").trim(),
     address: String(building.address ?? "").trim(),
     status: String(building.status ?? defaultStatus ?? "Prospective").trim(),
     description: String(building.description ?? "").trim(),
     notes: String(building.notes ?? "").trim(),
     updated_at: building.updated_at || new Date().toISOString(),
+  };
+}
+
+function toClientRow(client) {
+  return {
+    id: client.id,
+    company: client.company,
+    contact: client.contact,
+    phone: client.phone,
+    email: client.email,
+    status: client.status,
+    meeting_date: client.meeting_date || null,
+    meeting_owner: client.meeting_owner,
+    next_step: client.next_step,
+    follow_up: client.follow_up,
+    close_status: client.close_status,
+    notes: client.notes,
+    updated_at: client.updated_at || new Date().toISOString(),
+  };
+}
+
+function toBuildingRow(clientId, building) {
+  return {
+    id: building.id,
+    client_id: clientId,
+    name: building.name,
+    address: building.address,
+    status: building.status,
+    description: building.description,
+    notes: building.notes,
+    updated_at: building.updated_at || new Date().toISOString(),
+  };
+}
+
+function fromClientRow(row) {
+  return {
+    id: row.id,
+    company: row.company,
+    contact: row.contact,
+    phone: row.phone,
+    email: row.email,
+    status: row.status,
+    meeting_date: row.meeting_date ?? "",
+    meeting_owner: row.meeting_owner,
+    next_step: row.next_step,
+    follow_up: row.follow_up,
+    close_status: row.close_status,
+    notes: row.notes,
+    updated_at: row.updated_at,
+    buildings: [],
+  };
+}
+
+function fromBuildingRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    address: row.address,
+    status: row.status,
+    description: row.description,
+    notes: row.notes,
+    updated_at: row.updated_at,
   };
 }
 
@@ -552,9 +769,5 @@ function displayDate(value) {
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
   return `${Number(month)}/${Number(day)}/${year}`;
-}
-function formatDate(value) {
-  if (!value) return "-";
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
 function className(value) { return String(value).replace(/\s+|\//g, "-"); }
