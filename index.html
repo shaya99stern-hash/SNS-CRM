@@ -6,15 +6,15 @@
     <meta name="theme-color" content="#005b93" />
     <title>SNS Leads</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" href="./assets/icon.svg?v=20260504-14" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="./assets/icon.svg?v=20260504-14" />
-    <link rel="stylesheet" href="./styles.css?v=20260504-14" />
+    <link rel="icon" href="./assets/icon.svg?v=20260504-15" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/icon.svg?v=20260504-15" />
+    <link rel="stylesheet" href="./styles.css?v=20260504-15" />
   </head>
   <body>
     <main class="app-shell">
       <header class="masthead">
         <div class="brand">
-          <img src="./assets/icon.svg?v=20260504-14" alt="The Water Scrooge" width="54" height="54" />
+          <img src="./assets/icon.svg?v=20260504-15" alt="The Water Scrooge" width="54" height="54" />
           <div>
             <strong>SNS Leads</strong>
             <span>The Water Scrooge</span>
@@ -35,6 +35,9 @@
             <label class="search-field">
               <input id="searchInput" type="search" placeholder="Search clients, contacts, buildings, notes" autocomplete="off" />
             </label>
+            <button id="refreshBtn" class="secondary-btn refresh-action" type="button" aria-label="Refresh latest changes">
+              ↻ Refresh
+            </button>
             <button id="addClientBtn" class="primary-btn add-client-action" type="button">
               <span aria-hidden="true">+</span>
               Add client
@@ -206,6 +209,6 @@
       </form>
     </dialog>
 
-    <script src="./app.js?v=20260504-14" type="module"></script>
+    <script src="./app.js?v=20260504-15" type="module"></script>
   </body>
 </html>
