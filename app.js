@@ -68,54 +68,51 @@ const IMPORTED_CONTACTS = [
   },
 ];
 
-const state = {
-  clients: [],
-  search: "",
-  view: "clients",
-};
+const state = { clients: [], search: "", view: "clients" };
 
+const $ = (selector) => document.querySelector(selector);
 const els = {
-  totalCount: document.querySelector("#totalCount"),
-  pageTitle: document.querySelector("#pageTitle"),
-  clientMetric: document.querySelector("#clientMetric"),
-  buildingMetric: document.querySelector("#buildingMetric"),
-  statusMetric: document.querySelector("#statusMetric"),
-  search: document.querySelector("#searchInput"),
-  addClientBtn: document.querySelector("#addClientBtn"),
-  addBuildingBtn: document.querySelector("#addBuildingBtn"),
-  clientsView: document.querySelector("#clientsView"),
-  buildingsView: document.querySelector("#buildingsView"),
-  clientList: document.querySelector("#clientList"),
-  buildingList: document.querySelector("#buildingList"),
-  clientEmpty: document.querySelector("#clientEmptyState"),
-  buildingEmpty: document.querySelector("#buildingEmptyState"),
-  clientDialog: document.querySelector("#clientDialog"),
-  clientForm: document.querySelector("#clientForm"),
-  clientDialogTitle: document.querySelector("#clientDialogTitle"),
-  deleteClientBtn: document.querySelector("#deleteClientBtn"),
-  clientId: document.querySelector("#clientId"),
-  company: document.querySelector("#companyInput"),
-  contact: document.querySelector("#contactInput"),
-  phone: document.querySelector("#phoneInput"),
-  email: document.querySelector("#emailInput"),
-  status: document.querySelector("#statusInput"),
-  meetingDate: document.querySelector("#meetingDateInput"),
-  meetingOwner: document.querySelector("#meetingOwnerInput"),
-  nextStep: document.querySelector("#nextStepInput"),
-  followUp: document.querySelector("#followUpInput"),
-  closeStatus: document.querySelector("#closeStatusInput"),
-  notes: document.querySelector("#notesInput"),
-  buildingDialog: document.querySelector("#buildingDialog"),
-  buildingForm: document.querySelector("#buildingForm"),
-  buildingDialogTitle: document.querySelector("#buildingDialogTitle"),
-  deleteBuildingBtn: document.querySelector("#deleteBuildingBtn"),
-  buildingId: document.querySelector("#buildingId"),
-  buildingClient: document.querySelector("#buildingClientInput"),
-  buildingName: document.querySelector("#buildingNameInput"),
-  buildingAddress: document.querySelector("#buildingAddressInput"),
-  buildingStatus: document.querySelector("#buildingStatusInput"),
-  buildingDescription: document.querySelector("#buildingDescriptionInput"),
-  buildingNotes: document.querySelector("#buildingNotesInput"),
+  totalCount: $("#totalCount"),
+  pageTitle: $("#pageTitle"),
+  clientMetric: $("#clientMetric"),
+  buildingMetric: $("#buildingMetric"),
+  statusMetric: $("#statusMetric"),
+  search: $("#searchInput"),
+  addClientBtn: $("#addClientBtn"),
+  addBuildingBtn: $("#addBuildingBtn"),
+  clientsView: $("#clientsView"),
+  buildingsView: $("#buildingsView"),
+  clientList: $("#clientList"),
+  buildingList: $("#buildingList"),
+  clientEmpty: $("#clientEmptyState"),
+  buildingEmpty: $("#buildingEmptyState"),
+  clientDialog: $("#clientDialog"),
+  clientForm: $("#clientForm"),
+  clientDialogTitle: $("#clientDialogTitle"),
+  deleteClientBtn: $("#deleteClientBtn"),
+  clientId: $("#clientId"),
+  company: $("#companyInput"),
+  contact: $("#contactInput"),
+  phone: $("#phoneInput"),
+  email: $("#emailInput"),
+  status: $("#statusInput"),
+  meetingDate: $("#meetingDateInput"),
+  meetingOwner: $("#meetingOwnerInput"),
+  nextStep: $("#nextStepInput"),
+  followUp: $("#followUpInput"),
+  closeStatus: $("#closeStatusInput"),
+  notes: $("#notesInput"),
+  buildingDialog: $("#buildingDialog"),
+  buildingForm: $("#buildingForm"),
+  buildingDialogTitle: $("#buildingDialogTitle"),
+  deleteBuildingBtn: $("#deleteBuildingBtn"),
+  buildingId: $("#buildingId"),
+  buildingClient: $("#buildingClientInput"),
+  buildingName: $("#buildingNameInput"),
+  buildingAddress: $("#buildingAddressInput"),
+  buildingStatus: $("#buildingStatusInput"),
+  buildingDescription: $("#buildingDescriptionInput"),
+  buildingNotes: $("#buildingNotesInput"),
 };
 
 init();
@@ -124,48 +121,38 @@ async function init() {
   bindEvents();
   await loadClients();
   render();
-
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  }
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
 
 function bindEvents() {
   els.addClientBtn.addEventListener("click", () => openClientDialog());
   els.addBuildingBtn.addEventListener("click", () => openBuildingDialog());
-
   document.querySelectorAll(".tab-btn").forEach((button) => {
     button.addEventListener("click", () => {
       state.view = button.dataset.view;
       render();
     });
   });
-
   els.search.addEventListener("input", (event) => {
     state.search = event.target.value.trim().toLowerCase();
     render();
   });
-
   els.clientForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     await saveClient();
   });
-
   els.buildingForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     await saveBuilding();
   });
-
   document.querySelectorAll(".close-dialog").forEach((button) => {
     button.addEventListener("click", () => button.closest("dialog")?.close());
   });
-
   els.deleteClientBtn.addEventListener("click", async () => {
     if (!els.clientId.value) return;
     await deleteClient(els.clientId.value);
     els.clientDialog.close();
   });
-
   els.deleteBuildingBtn.addEventListener("click", async () => {
     if (!els.buildingId.value) return;
     await deleteBuilding(els.buildingId.value);
@@ -231,68 +218,48 @@ function renderMetrics() {
 function renderClients() {
   const clients = filteredClients();
   els.clientList.innerHTML = "";
+  els.clientList.classList.add("slide-list");
 
   clients.forEach((client) => {
     const card = document.createElement("article");
-    card.className = "crm-card client-card";
+    card.className = "crm-card client-card compact-card";
 
     const header = document.createElement("div");
     header.className = "card-header";
-
     const title = document.createElement("button");
     title.className = "card-title-link";
     title.type = "button";
     title.textContent = client.company;
     title.addEventListener("click", () => openClientDialog(client));
-
-    const status = pill(client.status || "Prospective", "status-pill");
-    header.append(title, status);
+    header.append(title, pill(client.status || "Prospective", "status-pill"));
 
     const meta = document.createElement("div");
-    meta.className = "card-grid";
-    meta.append(
-      field("Contact", client.contact || "-"),
-      linkedField("Phone", client.phone, `tel:${digitsOnly(client.phone)}`),
-      linkedField("Email", client.email, `mailto:${client.email}`),
-      field("Meeting date", displayDate(client.meeting_date) || "-"),
-      field("Meeting owner", client.meeting_owner || "-"),
-      field("Next step", client.next_step || "-", true),
-      field("Follow up / comment", client.follow_up || "-", true),
-      field("Close / no close", client.close_status || "-", true),
-      field("Buildings", String((client.buildings ?? []).length)),
-      field("Updated", formatDate(client.updated_at)),
-    );
-
-    if (client.notes) meta.append(field("Notes", client.notes, true));
-
-    const buildingPreview = document.createElement("div");
-    buildingPreview.className = "inline-building-list";
-    (client.buildings ?? []).slice(0, 4).forEach((building) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "inline-building";
-      button.textContent = building.name;
-      button.addEventListener("click", () => openBuildingDialog(client, building));
-      buildingPreview.append(button);
-    });
+    meta.className = "card-grid compact-grid";
+    addIfPresent(meta, "Contact", client.contact);
+    addLinkedIfPresent(meta, "Phone", client.phone, `tel:${digitsOnly(client.phone)}`);
+    addLinkedIfPresent(meta, "Email", client.email, `mailto:${client.email}`);
+    addIfPresent(meta, "Meeting", displayDate(client.meeting_date));
+    addIfPresent(meta, "Owner", client.meeting_owner);
+    addIfPresent(meta, "Next", client.next_step, true);
+    addIfPresent(meta, "Follow up", client.follow_up, true);
+    addIfPresent(meta, "Close", client.close_status, true);
+    meta.append(field("Buildings", String((client.buildings ?? []).length)));
 
     const actions = document.createElement("div");
-    actions.className = "card-actions";
+    actions.className = "card-actions compact-actions";
     const addBuilding = document.createElement("button");
     addBuilding.className = "secondary-btn";
     addBuilding.type = "button";
-    addBuilding.textContent = "+ Add building";
+    addBuilding.textContent = "+ Building";
     addBuilding.addEventListener("click", () => openBuildingDialog(client));
     const edit = document.createElement("button");
     edit.className = "secondary-btn";
     edit.type = "button";
-    edit.textContent = "Edit client";
+    edit.textContent = "Edit";
     edit.addEventListener("click", () => openClientDialog(client));
     actions.append(addBuilding, edit);
 
-    card.append(header, meta);
-    if (buildingPreview.children.length) card.append(buildingPreview);
-    card.append(actions);
+    card.append(header, meta, actions);
     els.clientList.append(card);
   });
 
@@ -302,10 +269,11 @@ function renderClients() {
 function renderBuildings() {
   const buildings = filteredBuildings();
   els.buildingList.innerHTML = "";
+  els.buildingList.classList.add("slide-list");
 
   buildings.forEach(({ client, building }) => {
     const card = document.createElement("article");
-    card.className = "crm-card building-card";
+    card.className = "crm-card building-card compact-card";
     card.addEventListener("click", () => openBuildingDialog(client, building));
 
     const header = document.createElement("div");
@@ -321,20 +289,18 @@ function renderBuildings() {
     header.append(title, pill(building.status || "Prospective", "status-pill"));
 
     const meta = document.createElement("div");
-    meta.className = "card-grid";
-    meta.append(
-      field("Client", client.company),
-      field("Address", building.address || "-", true),
-      field("Description", building.description || "-"),
-      field("Notes", building.notes || "-", true),
-    );
+    meta.className = "card-grid compact-grid";
+    addIfPresent(meta, "Client", client.company);
+    addIfPresent(meta, "Address", building.address, true);
+    addIfPresent(meta, "Description", building.description);
+    addIfPresent(meta, "Notes", building.notes, true);
 
     const actions = document.createElement("div");
-    actions.className = "card-actions";
+    actions.className = "card-actions compact-actions";
     const edit = document.createElement("button");
     edit.className = "secondary-btn";
     edit.type = "button";
-    edit.textContent = "Open / edit building";
+    edit.textContent = "Edit";
     edit.addEventListener("click", (event) => {
       event.stopPropagation();
       openBuildingDialog(client, building);
@@ -347,6 +313,16 @@ function renderBuildings() {
 
   const totalBuildings = allBuildings().length;
   setEmptyState(els.buildingEmpty, totalBuildings === 0, buildings.length === 0, "No matching buildings found", "Try a different building, client, address, status, or note.");
+}
+
+function addIfPresent(parent, label, value, wide = false) {
+  if (!value) return;
+  parent.append(field(label, value, wide));
+}
+
+function addLinkedIfPresent(parent, label, value, href) {
+  if (!value) return;
+  parent.append(linkedField(label, value, href));
 }
 
 function setEmptyState(element, noneAtAll, noneFiltered, filteredTitle, filteredBody) {
@@ -372,9 +348,7 @@ function filteredBuildings() {
 }
 
 function allBuildings() {
-  return state.clients.flatMap((client) =>
-    (client.buildings ?? []).map((building) => ({ client, building })),
-  );
+  return state.clients.flatMap((client) => (client.buildings ?? []).map((building) => ({ client, building })));
 }
 
 function openClientDialog(client = null) {
@@ -402,7 +376,6 @@ function openBuildingDialog(client = null, building = null) {
     openClientDialog();
     return;
   }
-
   els.buildingForm.reset();
   renderClientOptions(client?.id);
   els.buildingId.value = building?.id ?? "";
@@ -445,9 +418,7 @@ async function saveClient() {
     notes: els.notes.value.trim(),
     updated_at: new Date().toISOString(),
   };
-
   if (!payload.company) return;
-
   const clients = [...state.clients];
   if (existingId) {
     const index = clients.findIndex((client) => client.id === existingId);
@@ -455,7 +426,6 @@ async function saveClient() {
   } else {
     clients.unshift(normalizeClient({ id: crypto.randomUUID(), buildings: [], ...payload }));
   }
-
   state.clients = clients;
   persistAndRender();
   els.clientDialog.close();
@@ -465,7 +435,6 @@ async function saveBuilding() {
   const selectedClientId = els.buildingClient.value;
   const selectedClient = state.clients.find((client) => client.id === selectedClientId);
   if (!selectedClient || !els.buildingName.value.trim()) return;
-
   const buildingId = els.buildingId.value || crypto.randomUUID();
   const payload = normalizeBuilding({
     id: buildingId,
@@ -476,20 +445,16 @@ async function saveBuilding() {
     notes: els.buildingNotes.value.trim(),
     updated_at: new Date().toISOString(),
   }, selectedClient.status);
-
   state.clients = state.clients.map((client) => {
     const buildings = client.buildings ?? [];
     const withoutBuilding = buildings.filter((building) => building.id !== buildingId);
     if (client.id !== selectedClientId) return normalizeClient({ ...client, buildings: withoutBuilding });
-
     const existingIndex = buildings.findIndex((building) => building.id === buildingId);
     const nextBuildings = existingIndex >= 0
       ? buildings.map((building) => building.id === buildingId ? payload : building)
       : [payload, ...withoutBuilding];
-
     return normalizeClient({ ...client, buildings: nextBuildings, updated_at: new Date().toISOString() });
   });
-
   persistAndRender();
   els.buildingDialog.close();
 }
@@ -546,20 +511,7 @@ function normalizeBuilding(building, defaultStatus = "Prospective") {
 }
 
 function searchTextForClient(client) {
-  return [
-    client.company,
-    client.contact,
-    client.phone,
-    client.email,
-    client.status,
-    client.meeting_date,
-    client.meeting_owner,
-    client.next_step,
-    client.follow_up,
-    client.close_status,
-    client.notes,
-    ...(client.buildings ?? []).flatMap((building) => [building.name, building.address, building.status, building.description, building.notes]),
-  ].join(" ").toLowerCase();
+  return [client.company, client.contact, client.phone, client.email, client.status, client.meeting_date, client.meeting_owner, client.next_step, client.follow_up, client.close_status, client.notes, ...(client.buildings ?? []).flatMap((building) => [building.name, building.address, building.status, building.description, building.notes])].join(" ").toLowerCase();
 }
 
 function searchTextForBuilding(client, building) {
@@ -578,7 +530,6 @@ function field(label, value, wide = false) {
 }
 
 function linkedField(label, value, href) {
-  if (!value) return field(label, "-");
   const wrapper = document.createElement("div");
   wrapper.className = "field-row";
   const labelEl = document.createElement("span");
@@ -597,27 +548,15 @@ function pill(text, classNameValue) {
   return el;
 }
 
-function digitsOnly(value = "") {
-  return value.replace(/[^+\d]/g, "");
-}
-
+function digitsOnly(value = "") { return value.replace(/[^+\d]/g, ""); }
 function displayDate(value) {
   if (!value) return "";
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
   return `${Number(month)}/${Number(day)}/${year}`;
 }
-
 function formatDate(value) {
   if (!value) return "-";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
-
-function className(value) {
-  return String(value).replace(/\s+|\//g, "-");
-}
+function className(value) { return String(value).replace(/\s+|\//g, "-"); }
