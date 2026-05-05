@@ -77,7 +77,10 @@ h2 { font-size: 0.92rem; }
 .field-row { display: grid; gap: 0; min-width: 0; }
 .field-row.is-wide { grid-column: 1 / -1; }
 .field-row span { color: var(--muted); font-size: 0.39rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; }
+.notes-field span { color: #58bff2; font-weight: 950; }
+.notes-field strong { color: #0f3e5c; }
 .field-row strong, .field-row a { color: var(--ink); font-size: 0.52rem; font-weight: 600; line-height: 1.08; text-decoration: none; overflow-wrap: anywhere; white-space: pre-wrap; }
+.notes-field strong { color: #0f3e5c; }
 .field-row.is-wide strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .inline-building-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .inline-building { background: var(--accent-soft); border: 1px solid #cde9fc; border-radius: 999px; color: var(--accent); font-weight: 850; max-width: 100%; min-height: 22px; padding: 0 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.54rem; }
