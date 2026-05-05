@@ -239,6 +239,7 @@ function renderClients() {
     addIfPresent(meta, "Next", client.next_step, true);
     addIfPresent(meta, "Follow up", client.follow_up, true);
     addIfPresent(meta, "Close", client.close_status, true);
+    addIfPresent(meta, "Notes", client.notes, true);
     meta.append(field("Buildings", String((client.buildings ?? []).length)));
 
     const actions = document.createElement("div");
