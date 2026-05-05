@@ -518,6 +518,7 @@ function searchTextForBuilding(client, building) {
 function field(label, value, wide = false) {
   const wrapper = document.createElement("div");
   wrapper.className = wide ? "field-row is-wide" : "field-row";
+  if (label.toLowerCase().includes("notes")) wrapper.classList.add("notes-field");
   const labelEl = document.createElement("span");
   labelEl.textContent = label;
   const valueEl = document.createElement("strong");
