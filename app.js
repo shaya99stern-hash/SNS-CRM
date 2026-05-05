@@ -9,6 +9,21 @@ let realtimeRefreshTimer = null;
 let isSaving = false;
 let isRefreshing = false;
 
+const EMPTY_COPY = {
+  clients: {
+    initialTitle: "No clients yet",
+    initialBody: "Add the parent company/client first. Then add buildings under that client.",
+    filteredTitle: "No matching clients found",
+    filteredBody: "Try a different client, contact, building, phone, email, status, or note.",
+  },
+  buildings: {
+    initialTitle: "No buildings yet",
+    initialBody: "Open a client and add buildings/properties under that parent client.",
+    filteredTitle: "No matching buildings found",
+    filteredBody: "Try a different building, client, address, status, or note.",
+  },
+};
+
 const IMPORTED_CONTACTS = [
   {
     id: "client-adam-muller-high-point-re",
@@ -173,19 +188,23 @@ function bindEvents() {
 async function manualRefresh() {
   if (isRefreshing || isSaving) return;
   isRefreshing = true;
+  const originalText = els.refreshBtn?.textContent || "↻ Refresh";
   if (els.refreshBtn) {
     els.refreshBtn.disabled = true;
     els.refreshBtn.textContent = "Refreshing...";
   }
-  await refreshFromRemote(true);
-  if (els.refreshBtn) {
-    els.refreshBtn.textContent = "✓ Updated";
+  try {
+    await refreshFromRemote(true);
+    if (els.refreshBtn) els.refreshBtn.textContent = "✓ Updated";
+  } finally {
     setTimeout(() => {
-      els.refreshBtn.textContent = "↻ Refresh";
-      els.refreshBtn.disabled = false;
+      if (els.refreshBtn) {
+        els.refreshBtn.textContent = originalText.includes("Refresh") ? originalText : "↻ Refresh";
+        els.refreshBtn.disabled = false;
+      }
+      isRefreshing = false;
     }, 900);
   }
-  isRefreshing = false;
 }
 
 async function loadClients() {
@@ -196,7 +215,7 @@ async function loadClients() {
   try {
     const remoteClients = await fetchRemoteClients();
     if (remoteClients.length) {
-      state.clients = remoteClients;
+      state.clients = sortClients(remoteClients);
       state.syncStatus = "live";
       cacheLocal();
       return;
@@ -204,13 +223,13 @@ async function loadClients() {
 
     const seedClients = mergeImportedContacts(localClients);
     await seedRemoteIfEmpty(seedClients);
-    state.clients = await fetchRemoteClients();
-    if (!state.clients.length) state.clients = seedClients;
+    state.clients = sortClients(await fetchRemoteClients());
+    if (!state.clients.length) state.clients = sortClients(seedClients);
     state.syncStatus = "live";
     cacheLocal();
   } catch (error) {
     console.warn("Supabase unavailable; using local fallback", error);
-    state.clients = mergeImportedContacts(localClients);
+    state.clients = sortClients(mergeImportedContacts(localClients));
     state.syncStatus = "local";
     cacheLocal();
   }
@@ -220,7 +239,7 @@ async function refreshFromRemote(showAlert = false) {
   if (isSaving) return;
   try {
     const remoteClients = await fetchRemoteClients();
-    state.clients = remoteClients;
+    state.clients = sortClients(remoteClients);
     state.syncStatus = "live";
     cacheLocal();
     render();
@@ -235,7 +254,9 @@ function subscribeToRealtime() {
     .channel("sns-leads-shared-sync")
     .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, scheduleRealtimeRefresh)
     .on("postgres_changes", { event: "*", schema: "public", table: "buildings" }, scheduleRealtimeRefresh)
-    .subscribe();
+    .subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") console.warn("Realtime connection issue:", status);
+    });
 }
 
 function scheduleRealtimeRefresh() {
@@ -266,7 +287,7 @@ async function fetchRemoteClients() {
 
   return (clientRows ?? []).map((row) => normalizeClient({
     ...fromClientRow(row),
-    buildings: buildingsByClient.get(row.id) ?? [],
+    buildings: sortBuildings(buildingsByClient.get(row.id) ?? []),
   }));
 }
 
@@ -305,7 +326,7 @@ function mergeImportedContacts(existingClients) {
   IMPORTED_CONTACTS.forEach((client) => {
     if (!byId.has(client.id)) byId.set(client.id, normalizeClient(client));
   });
-  return Array.from(byId.values()).map(normalizeClient);
+  return sortClients(Array.from(byId.values()).map(normalizeClient));
 }
 
 function render() {
@@ -383,7 +404,7 @@ function renderClients() {
     els.clientList.append(card);
   });
 
-  setEmptyState(els.clientEmpty, state.clients.length === 0, clients.length === 0, "No matching clients found", "Try a different client, contact, building, phone, email, status, or note.");
+  setEmptyState(els.clientEmpty, EMPTY_COPY.clients, state.clients.length === 0, clients.length === 0);
 }
 
 function renderBuildings() {
@@ -432,7 +453,7 @@ function renderBuildings() {
   });
 
   const totalBuildings = allBuildings().length;
-  setEmptyState(els.buildingEmpty, totalBuildings === 0, buildings.length === 0, "No matching buildings found", "Try a different building, client, address, status, or note.");
+  setEmptyState(els.buildingEmpty, EMPTY_COPY.buildings, totalBuildings === 0, buildings.length === 0);
 }
 
 function addIfPresent(parent, label, value, wide = false) {
@@ -445,26 +466,22 @@ function addLinkedIfPresent(parent, label, value, href) {
   parent.append(linkedField(label, value, href));
 }
 
-function setEmptyState(element, noneAtAll, noneFiltered, filteredTitle, filteredBody) {
-  if (noneAtAll) {
+function setEmptyState(element, copy, noneAtAll, noneFiltered) {
+  if (noneAtAll || noneFiltered) {
     element.hidden = false;
-    return;
-  }
-  if (noneFiltered) {
-    element.hidden = false;
-    element.querySelector("strong").textContent = filteredTitle;
-    element.querySelector("span").textContent = filteredBody;
+    element.querySelector("strong").textContent = noneAtAll ? copy.initialTitle : copy.filteredTitle;
+    element.querySelector("span").textContent = noneAtAll ? copy.initialBody : copy.filteredBody;
     return;
   }
   element.hidden = true;
 }
 
 function filteredClients() {
-  return state.clients.filter((client) => searchTextForClient(client).includes(state.search));
+  return sortClients(state.clients.filter((client) => searchTextForClient(client).includes(state.search)));
 }
 
 function filteredBuildings() {
-  return allBuildings().filter(({ client, building }) => searchTextForBuilding(client, building).includes(state.search));
+  return sortBuildingMatches(allBuildings().filter(({ client, building }) => searchTextForBuilding(client, building).includes(state.search)));
 }
 
 function allBuildings() {
@@ -513,7 +530,7 @@ function openBuildingDialog(client = null, building = null) {
 
 function renderClientOptions(selectedId = "") {
   els.buildingClient.innerHTML = "";
-  state.clients.forEach((client) => {
+  sortClients(state.clients).forEach((client) => {
     const option = document.createElement("option");
     option.value = client.id;
     option.textContent = client.company;
@@ -543,9 +560,9 @@ async function saveClient() {
   if (!payload.company) return;
 
   const previousClients = [...state.clients];
-  state.clients = existingId
+  state.clients = sortClients(existingId
     ? state.clients.map((client) => client.id === existingId ? payload : client)
-    : [payload, ...state.clients];
+    : [payload, ...state.clients]);
   cacheLocal();
   render();
 
@@ -583,11 +600,11 @@ async function saveBuilding() {
   }, selectedClient.status);
 
   const previousClients = [...state.clients];
-  state.clients = state.clients.map((client) => {
+  state.clients = sortClients(state.clients.map((client) => {
     const withoutBuilding = (client.buildings ?? []).filter((building) => building.id !== buildingId);
     if (client.id !== selectedClientId) return normalizeClient({ ...client, buildings: withoutBuilding });
-    return normalizeClient({ ...client, buildings: [payload, ...withoutBuilding], updated_at: new Date().toISOString() });
-  });
+    return normalizeClient({ ...client, buildings: sortBuildings([payload, ...withoutBuilding]), updated_at: new Date().toISOString() });
+  }));
   cacheLocal();
   render();
 
@@ -610,7 +627,7 @@ async function saveBuilding() {
 
 async function deleteClient(id) {
   const previousClients = [...state.clients];
-  state.clients = state.clients.filter((client) => client.id !== id);
+  state.clients = sortClients(state.clients.filter((client) => client.id !== id));
   cacheLocal();
   render();
   try {
@@ -630,10 +647,10 @@ async function deleteClient(id) {
 
 async function deleteBuilding(id) {
   const previousClients = [...state.clients];
-  state.clients = state.clients.map((client) => normalizeClient({
+  state.clients = sortClients(state.clients.map((client) => normalizeClient({
     ...client,
-    buildings: (client.buildings ?? []).filter((building) => building.id !== id),
-  }));
+    buildings: sortBuildings((client.buildings ?? []).filter((building) => building.id !== id)),
+  })));
   cacheLocal();
   render();
   try {
@@ -667,7 +684,7 @@ function normalizeClient(client) {
     notes: String(client.notes ?? "").trim(),
     updated_at: client.updated_at || new Date().toISOString(),
     buildings: Array.isArray(client.buildings)
-      ? client.buildings.map((building) => normalizeBuilding(building, client.status)).filter((building) => building.name)
+      ? sortBuildings(client.buildings.map((building) => normalizeBuilding(building, client.status)).filter((building) => building.name))
       : [],
   };
 }
@@ -752,6 +769,22 @@ function searchTextForClient(client) {
 
 function searchTextForBuilding(client, building) {
   return [client.company, client.contact, building.name, building.address, building.status, building.description, building.notes].join(" ").toLowerCase();
+}
+
+function sortClients(clients) {
+  return [...clients].sort((a, b) => (a.company || "").localeCompare(b.company || "", undefined, { sensitivity: "base" }));
+}
+
+function sortBuildings(buildings) {
+  return [...buildings].sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
+}
+
+function sortBuildingMatches(matches) {
+  return [...matches].sort((a, b) => {
+    const clientCompare = (a.client.company || "").localeCompare(b.client.company || "", undefined, { sensitivity: "base" });
+    if (clientCompare) return clientCompare;
+    return (a.building.name || "").localeCompare(b.building.name || "", undefined, { sensitivity: "base" });
+  });
 }
 
 function field(label, value, wide = false) {
