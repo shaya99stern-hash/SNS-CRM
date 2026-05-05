@@ -76,7 +76,6 @@ const els = {
   pageTitle: $("#pageTitle"),
   clientMetric: $("#clientMetric"),
   buildingMetric: $("#buildingMetric"),
-  statusMetric: $("#statusMetric"),
   search: $("#searchInput"),
   addClientBtn: $("#addClientBtn"),
   addBuildingBtn: $("#addBuildingBtn"),
@@ -207,12 +206,9 @@ function renderShell() {
 
 function renderMetrics() {
   const buildings = allBuildings();
-  const openClients = state.clients.filter((client) => !["Closed", "No close"].includes(client.status)).length;
-  const openBuildings = buildings.filter((item) => !["Installation done", "Dead / not a fit"].includes(item.building.status)).length;
   els.totalCount.textContent = state.clients.length;
   els.clientMetric.textContent = state.clients.length;
   els.buildingMetric.textContent = buildings.length;
-  els.statusMetric.textContent = openClients + openBuildings;
 }
 
 function renderClients() {
