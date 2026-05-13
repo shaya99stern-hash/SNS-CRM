@@ -91,7 +91,8 @@ const IMPORTED_CONTACTS = [
   },
 ];
 
-const state = { clients: [], search: "", view: "clients", syncStatus: "local" };
+const state = { clients: [], search: "", statusFilter: "", view: "clients", syncStatus: "local" };
+const expandedClientIds = new Set();
 const $ = (selector) => document.querySelector(selector);
 
 const els = {
@@ -101,6 +102,7 @@ const els = {
   buildingMetric: $("#buildingMetric"),
   search: $("#searchInput"),
   refreshBtn: $("#refreshBtn"),
+  statusFilter: $("#statusFilter"),
   addClientBtn: $("#addClientBtn"),
   addBuildingBtn: $("#addBuildingBtn"),
   clientsView: $("#clientsView"),
@@ -160,6 +162,10 @@ function bindEvents() {
   });
   els.search.addEventListener("input", (event) => {
     state.search = event.target.value.trim().toLowerCase();
+    render();
+  });
+  els.statusFilter?.addEventListener("change", (event) => {
+    state.statusFilter = event.target.value;
     render();
   });
   els.clientForm.addEventListener("submit", async (event) => {
@@ -358,51 +364,85 @@ function renderMetrics() {
 function renderClients() {
   const clients = filteredClients();
   els.clientList.innerHTML = "";
-  els.clientList.classList.add("slide-list");
+  els.clientList.classList.remove("slide-list");
 
-  clients.forEach((client) => {
-    const card = document.createElement("article");
-    card.className = "crm-card client-card compact-card";
+  if (clients.length) {
+    const table = createSheetTable([
+      "Company / Client",
+      "Contact",
+      "Phone",
+      "Email",
+      "Client Status",
+      "Meeting Date",
+      "Meeting Owner",
+      "Next Step",
+      "Follow Up / Comment",
+      "Close / No Close",
+      "Notes",
+      "Buildings Count",
+      "Last Updated",
+      "Actions",
+    ], "clients-sheet");
 
-    const header = document.createElement("div");
-    header.className = "card-header";
-    const title = document.createElement("button");
-    title.className = "card-title-link";
-    title.type = "button";
-    title.textContent = client.company;
-    title.addEventListener("click", () => openClientDialog(client));
-    header.append(title, pill(client.status || "Prospective", "status-pill"));
+    const tbody = table.querySelector("tbody");
+    clients.forEach((client) => {
+      const row = document.createElement("tr");
+      row.className = "sheet-row client-row";
+      row.addEventListener("click", () => openClientDialog(client));
 
-    const meta = document.createElement("div");
-    meta.className = "card-grid compact-grid";
-    addIfPresent(meta, "Contact", client.contact);
-    addLinkedIfPresent(meta, "Phone", client.phone, `tel:${digitsOnly(client.phone)}`);
-    addLinkedIfPresent(meta, "Email", client.email, `mailto:${client.email}`);
-    addIfPresent(meta, "Meeting", displayDate(client.meeting_date));
-    addIfPresent(meta, "Owner", client.meeting_owner);
-    addIfPresent(meta, "Next", client.next_step, true);
-    addIfPresent(meta, "Follow up", client.follow_up, true);
-    addIfPresent(meta, "Close", client.close_status, true);
-    addIfPresent(meta, "Notes", client.notes, true);
-    meta.append(field("Buildings", String((client.buildings ?? []).length)));
+      const companyCell = document.createElement("td");
+      companyCell.className = "company-cell sticky-cell";
+      const companyWrap = document.createElement("div");
+      companyWrap.className = "company-cell-inner";
+      const expand = document.createElement("button");
+      expand.className = "sheet-icon-btn";
+      expand.type = "button";
+      expand.textContent = expandedClientIds.has(client.id) ? "-" : "+";
+      expand.setAttribute("aria-label", `${expandedClientIds.has(client.id) ? "Hide" : "Show"} buildings for ${client.company}`);
+      expand.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (expandedClientIds.has(client.id)) expandedClientIds.delete(client.id);
+        else expandedClientIds.add(client.id);
+        renderClients();
+      });
+      const companyName = document.createElement("button");
+      companyName.className = "sheet-link";
+      companyName.type = "button";
+      companyName.textContent = emptyText(client.company);
+      companyName.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openClientDialog(client);
+      });
+      companyWrap.append(expand, companyName);
+      companyCell.append(companyWrap);
 
-    const actions = document.createElement("div");
-    actions.className = "card-actions compact-actions";
-    const addBuilding = document.createElement("button");
-    addBuilding.className = "secondary-btn";
-    addBuilding.type = "button";
-    addBuilding.textContent = "+ Building";
-    addBuilding.addEventListener("click", () => openBuildingDialog(client));
-    const edit = document.createElement("button");
-    edit.className = "secondary-btn";
-    edit.type = "button";
-    edit.textContent = "Edit";
-    edit.addEventListener("click", () => openClientDialog(client));
-    actions.append(addBuilding, edit);
+      row.append(
+        companyCell,
+        textCell(client.contact),
+        linkCell(client.phone, client.phone ? `tel:${digitsOnly(client.phone)}` : ""),
+        linkCell(client.email, client.email ? `mailto:${client.email}` : ""),
+        pillCell(client.status || "Prospective"),
+        textCell(displayDate(client.meeting_date)),
+        textCell(client.meeting_owner),
+        textCell(client.next_step, "clip-cell"),
+        textCell(client.follow_up, "clip-cell"),
+        textCell(client.close_status, "clip-cell"),
+        textCell(client.notes, "clip-cell notes-cell"),
+        textCell(String((client.buildings ?? []).length), "count-cell"),
+        textCell(displayDateTime(client.updated_at)),
+        actionsCell([
+          ["+ Building", () => openBuildingDialog(client)],
+          ["Edit", () => openClientDialog(client)],
+        ]),
+      );
+      tbody.append(row);
 
-    card.append(header, meta, actions);
-    els.clientList.append(card);
-  });
+      if (expandedClientIds.has(client.id)) {
+        tbody.append(clientBuildingsRow(client));
+      }
+    });
+    els.clientList.append(table);
+  }
 
   setEmptyState(els.clientEmpty, EMPTY_COPY.clients, state.clients.length === 0, clients.length === 0);
 }
@@ -410,47 +450,36 @@ function renderClients() {
 function renderBuildings() {
   const buildings = filteredBuildings();
   els.buildingList.innerHTML = "";
-  els.buildingList.classList.add("slide-list");
+  els.buildingList.classList.remove("slide-list");
 
-  buildings.forEach(({ client, building }) => {
-    const card = document.createElement("article");
-    card.className = "crm-card building-card compact-card";
-    card.addEventListener("click", () => openBuildingDialog(client, building));
-
-    const header = document.createElement("div");
-    header.className = "card-header";
-    const title = document.createElement("button");
-    title.className = "card-title-link";
-    title.type = "button";
-    title.textContent = building.name;
-    title.addEventListener("click", (event) => {
-      event.stopPropagation();
-      openBuildingDialog(client, building);
+  if (buildings.length) {
+    const table = createSheetTable([
+      "Client",
+      "Building / Property Name",
+      "Address",
+      "Building Status",
+      "Description",
+      "Building Notes",
+      "Actions",
+    ], "buildings-sheet");
+    const tbody = table.querySelector("tbody");
+    buildings.forEach(({ client, building }) => {
+      const row = document.createElement("tr");
+      row.className = "sheet-row building-row";
+      row.addEventListener("click", () => openBuildingDialog(client, building));
+      row.append(
+        textCell(client.company, "sticky-cell"),
+        textCell(building.name),
+        textCell(building.address, "clip-cell"),
+        pillCell(building.status || "Prospective"),
+        textCell(building.description, "clip-cell"),
+        textCell(building.notes, "clip-cell notes-cell"),
+        actionsCell([["Edit", () => openBuildingDialog(client, building)]]),
+      );
+      tbody.append(row);
     });
-    header.append(title, pill(building.status || "Prospective", "status-pill"));
-
-    const meta = document.createElement("div");
-    meta.className = "card-grid compact-grid";
-    addIfPresent(meta, "Client", client.company);
-    addIfPresent(meta, "Address", building.address, true);
-    addIfPresent(meta, "Description", building.description);
-    addIfPresent(meta, "Notes", building.notes, true);
-
-    const actions = document.createElement("div");
-    actions.className = "card-actions compact-actions";
-    const edit = document.createElement("button");
-    edit.className = "secondary-btn";
-    edit.type = "button";
-    edit.textContent = "Edit";
-    edit.addEventListener("click", (event) => {
-      event.stopPropagation();
-      openBuildingDialog(client, building);
-    });
-    actions.append(edit);
-
-    card.append(header, meta, actions);
-    els.buildingList.append(card);
-  });
+    els.buildingList.append(table);
+  }
 
   const totalBuildings = allBuildings().length;
   setEmptyState(els.buildingEmpty, EMPTY_COPY.buildings, totalBuildings === 0, buildings.length === 0);
@@ -466,6 +495,117 @@ function addLinkedIfPresent(parent, label, value, href) {
   parent.append(linkedField(label, value, href));
 }
 
+function createSheetTable(headers, classNameValue) {
+  const table = document.createElement("table");
+  table.className = `sheet-table ${classNameValue}`;
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  headers.forEach((header) => {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.textContent = header;
+    headerRow.append(th);
+  });
+  thead.append(headerRow);
+  table.append(thead, document.createElement("tbody"));
+  return table;
+}
+
+function clientBuildingsRow(client) {
+  const row = document.createElement("tr");
+  row.className = "building-detail-row";
+  const cell = document.createElement("td");
+  cell.colSpan = 14;
+  const panel = document.createElement("div");
+  panel.className = "building-detail-panel";
+
+  if (!(client.buildings ?? []).length) {
+    const empty = document.createElement("div");
+    empty.className = "inline-empty";
+    empty.textContent = "No buildings for this client yet.";
+    const add = smallActionButton("+ Building", () => openBuildingDialog(client));
+    panel.append(empty, add);
+  } else {
+    const table = createSheetTable([
+      "Building / Property Name",
+      "Address",
+      "Building Status",
+      "Description",
+      "Building Notes",
+      "Actions",
+    ], "nested-buildings-sheet");
+    const tbody = table.querySelector("tbody");
+    (client.buildings ?? []).forEach((building) => {
+      const buildingRow = document.createElement("tr");
+      buildingRow.className = "sheet-row building-row";
+      buildingRow.addEventListener("click", () => openBuildingDialog(client, building));
+      buildingRow.append(
+        textCell(building.name),
+        textCell(building.address, "clip-cell"),
+        pillCell(building.status || "Prospective"),
+        textCell(building.description, "clip-cell"),
+        textCell(building.notes, "clip-cell notes-cell"),
+        actionsCell([["Edit", () => openBuildingDialog(client, building)]]),
+      );
+      tbody.append(buildingRow);
+    });
+    panel.append(table);
+  }
+
+  cell.append(panel);
+  row.append(cell);
+  return row;
+}
+
+function textCell(value, classNameValue = "") {
+  const cell = document.createElement("td");
+  if (classNameValue) cell.className = classNameValue;
+  const text = emptyText(value);
+  cell.textContent = text;
+  if (text === "-") cell.classList.add("empty-cell");
+  return cell;
+}
+
+function linkCell(value, href) {
+  const cell = document.createElement("td");
+  if (!value || !href) {
+    cell.textContent = "-";
+    cell.className = "empty-cell";
+    return cell;
+  }
+  const link = document.createElement("a");
+  link.href = href;
+  link.textContent = value;
+  link.addEventListener("click", (event) => event.stopPropagation());
+  cell.append(link);
+  return cell;
+}
+
+function pillCell(value) {
+  const cell = document.createElement("td");
+  cell.append(pill(value, "status-pill"));
+  return cell;
+}
+
+function actionsCell(actions) {
+  const cell = document.createElement("td");
+  cell.className = "actions-cell";
+  actions.forEach(([label, handler]) => cell.append(smallActionButton(label, handler)));
+  return cell;
+}
+
+function smallActionButton(label, handler) {
+  const button = document.createElement("button");
+  button.className = "sheet-action";
+  button.type = "button";
+  button.textContent = label;
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    handler();
+  });
+  return button;
+}
+
 function setEmptyState(element, copy, noneAtAll, noneFiltered) {
   if (noneAtAll || noneFiltered) {
     element.hidden = false;
@@ -477,11 +617,19 @@ function setEmptyState(element, copy, noneAtAll, noneFiltered) {
 }
 
 function filteredClients() {
-  return sortClients(state.clients.filter((client) => searchTextForClient(client).includes(state.search)));
+  return sortClients(state.clients.filter((client) => {
+    const matchesSearch = searchTextForClient(client).includes(state.search);
+    const matchesStatus = !state.statusFilter || client.status === state.statusFilter;
+    return matchesSearch && matchesStatus;
+  }));
 }
 
 function filteredBuildings() {
-  return sortBuildingMatches(allBuildings().filter(({ client, building }) => searchTextForBuilding(client, building).includes(state.search)));
+  return sortBuildingMatches(allBuildings().filter(({ client, building }) => {
+    const matchesSearch = searchTextForBuilding(client, building).includes(state.search);
+    const matchesStatus = !state.statusFilter || client.status === state.statusFilter || building.status === state.statusFilter;
+    return matchesSearch && matchesStatus;
+  }));
 }
 
 function allBuildings() {
@@ -818,11 +966,18 @@ function pill(text, classNameValue) {
   return el;
 }
 
+function emptyText(value) { return String(value ?? "").trim() || "-"; }
 function digitsOnly(value = "") { return value.replace(/[^+\d]/g, ""); }
 function displayDate(value) {
   if (!value) return "";
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
   return `${Number(month)}/${Number(day)}/${year}`;
+}
+function displayDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, { month: "numeric", day: "numeric", year: "2-digit" });
 }
 function className(value) { return String(value).replace(/\s+|\//g, "-"); }

@@ -36,6 +36,18 @@
             <label class="search-field">
               <input id="searchInput" type="search" placeholder="Search clients, contacts, buildings, notes" autocomplete="off" />
             </label>
+            <label class="filter-field" aria-label="Filter by client status">
+              <select id="statusFilter">
+                <option value="">All statuses</option>
+                <option>Prospective</option>
+                <option>Meeting scheduled</option>
+                <option>Met</option>
+                <option>Follow up</option>
+                <option>Need next step</option>
+                <option>Closed</option>
+                <option>No close</option>
+              </select>
+            </label>
             <button id="refreshBtn" class="secondary-btn refresh-action" type="button" aria-label="Refresh latest changes">
               ↻ Refresh
             </button>
@@ -67,7 +79,7 @@
         </section>
 
         <section id="clientsView" class="view is-visible" aria-label="Clients">
-          <div id="clientList" class="card-list"></div>
+          <div id="clientList" class="table-surface"></div>
           <div id="clientEmptyState" class="empty-state" hidden>
             <strong>No clients yet</strong>
             <span>Add the parent company/client first. Then add buildings under that client.</span>
@@ -75,7 +87,7 @@
         </section>
 
         <section id="buildingsView" class="view" aria-label="Buildings">
-          <div id="buildingList" class="card-list"></div>
+          <div id="buildingList" class="table-surface"></div>
           <div id="buildingEmptyState" class="empty-state" hidden>
             <strong>No buildings yet</strong>
             <span>Open a client and add buildings/properties under that parent client.</span>
